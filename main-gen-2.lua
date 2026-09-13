@@ -3,9 +3,23 @@
 -- Clean single-file Roblox UI library
 --========================================================
 -- Features:
---   • Background Darker
---   • Rework UserProfile
---   • Rework Slider
+--   • 550x340 main window
+--   • PC + mobile window dragging
+--   • Draggable floating minimize/restore button
+--   • Square corners
+--   • Search bar
+--   • Profile + username
+--   • Lucide icon names + Roblox asset IDs
+--   • Tabs with scrolling
+--   • Auto-sized independent sections (NO section Size option)
+--   • Automatic page scrolling only when content overflows
+--   • Button / Toggle / Slider / Input / Dropdown
+--   • Centered searchable dropdown popup
+--   • Themes: Red / BlueSky / White / Yellow / Green / Purple / Orange
+--   • Theme affects toggle + slider + KeySystem accent only
+--   • Notification automatically uses Window.Image
+--   • KeySystem can be created BEFORE CreateWindow
+--   • Optional saved key
 --========================================================
 
 local DarkyUIGen2 = {}
@@ -700,6 +714,18 @@ local function AddCorner(parent, radius)
     local old = parent:FindFirstChildOfClass("UICorner")
     if old then old:Destroy() end
     return New("UICorner", { Parent = parent, CornerRadius = UDim.new(0, radius or 10) })
+end
+
+-- Scale-based full rounding (always exactly half of whatever the
+-- object's actual rendered size turns out to be), for anything that
+-- must be a true circle regardless of its pixel size - a fixed-pixel
+-- CornerRadius only looks circular if it happens to exactly match
+-- half the object's size, so knobs/avatars use this instead.
+local function AddCircle(parent)
+    if not parent then return nil end
+    local old = parent:FindFirstChildOfClass("UICorner")
+    if old then old:Destroy() end
+    return New("UICorner", { Parent = parent, CornerRadius = UDim.new(0.5, 0) })
 end
 
 local function CreateAuraFor(gui, target, colorProvider, options)
@@ -2752,7 +2778,7 @@ function DarkyUIGen2:CreateWindow(config)
                 }
             )
 
-            AddCorner(avatar, 18)
+            AddCircle(avatar)
 
             pcall(function()
                 local image =
@@ -4499,33 +4525,18 @@ function DarkyUIGen2:CreateWindow(config)
             Section.Page = targetPage
             Section._Tab = Tab
 
-            -- Gen-2: every new section pops in with a quick scale
-            -- animation instead of just appearing instantly. UIScale
-            -- only affects rendering, not layout, so it doesn't fight
-            -- the section's AutomaticSize height.
-            do
-                local sectionScale = New(
-                    "UIScale",
-                    {
-                        Parent = sectionFrame,
-                        Scale = 0.85,
-                    }
-                )
+            -- Gen-2: every new section fades in instead of just
+            -- appearing instantly. Transparency-only (no UIScale) so
+            -- it can't ever transiently distort AbsolutePosition/
+            -- AbsoluteSize for anything inside that depends on those
+            -- being stable immediately (e.g. the slider's drag math).
+            sectionFrame.BackgroundTransparency = 1
 
-                sectionFrame.BackgroundTransparency = 1
-
-                Tween(
-                    sectionScale,
-                    POP,
-                    { Scale = 1 }
-                )
-
-                Tween(
-                    sectionFrame,
-                    FAST,
-                    { BackgroundTransparency = 0 }
-                )
-            end
+            Tween(
+                sectionFrame,
+                FAST,
+                { BackgroundTransparency = 0 }
+            )
 
             Section.Icon = sectionConfig.Icon
 
@@ -5057,6 +5068,7 @@ function DarkyUIGen2:CreateWindow(config)
                         ),
                         BackgroundColor3 = COLORS.Panel,
                         BorderSizePixel = 0,
+                        ClipsDescendants = true,
                         ZIndex = 15,
                     }
                 )
@@ -5167,7 +5179,7 @@ function DarkyUIGen2:CreateWindow(config)
                     }
                 )
 
-                AddCorner(knob, math.floor(knobSize / 2))
+                AddCircle(knob)
 
                 Stroke(
                     knob,
