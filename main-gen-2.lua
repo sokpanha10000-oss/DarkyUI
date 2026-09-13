@@ -2745,6 +2745,8 @@ function DarkyUIGen2:CreateWindow(config)
             }
         )
 
+        AddCorner(profile, 10)
+
         Stroke(
             profile,
             COLORS.Border,
@@ -2763,6 +2765,8 @@ function DarkyUIGen2:CreateWindow(config)
                     ZIndex = 14,
                 }
             )
+
+            AddCorner(avatar, 18)
 
             pcall(function()
                 local image =
@@ -5046,6 +5050,15 @@ function DarkyUIGen2:CreateWindow(config)
                     minimum, maximum = maximum, minimum
                 end
 
+                -- Gen-2: sized and laid out like CreateButton - a
+                -- bigger rounded panel with the title inside near the
+                -- top, the track larger and themed instead of a
+                -- plain gray bar, and the description (if any) now
+                -- sits below the track rather than above it.
+                local trackHeight = 14
+                local trackY = 38
+                local descY = trackY + trackHeight + 10
+
                 local root = New(
                     "Frame",
                     {
@@ -5054,13 +5067,15 @@ function DarkyUIGen2:CreateWindow(config)
                             1,
                             0,
                             0,
-                            desc ~= "" and 67 or 56
+                            desc ~= "" and (descY + 24) or (trackY + trackHeight + 14)
                         ),
                         BackgroundColor3 = COLORS.Panel,
                         BorderSizePixel = 0,
                         ZIndex = 15,
                     }
                 )
+
+                AddCorner(root, 10)
 
                 Stroke(
                     root,
@@ -5073,7 +5088,7 @@ function DarkyUIGen2:CreateWindow(config)
                     {
                         Parent = root,
                         BackgroundTransparency = 1,
-                        Position = UDim2.fromOffset(11, 7),
+                        Position = UDim2.fromOffset(11, 8),
                         Size = UDim2.new(1, -75, 0, 20),
                         Text = title,
                         TextColor3 = COLORS.Text,
@@ -5089,7 +5104,7 @@ function DarkyUIGen2:CreateWindow(config)
                     {
                         Parent = root,
                         BackgroundTransparency = 1,
-                        Position = UDim2.new(1, -60, 0, 7),
+                        Position = UDim2.new(1, -60, 0, 8),
                         Size = UDim2.fromOffset(50, 20),
                         Text = tostring(current),
                         TextColor3 = CurrentTheme().Accent2,
@@ -5100,52 +5115,35 @@ function DarkyUIGen2:CreateWindow(config)
                     }
                 )
 
-                if desc ~= "" then
-                    New(
-                        "TextLabel",
-                        {
-                            Parent = root,
-                            BackgroundTransparency = 1,
-                            Position = UDim2.fromOffset(11, 27),
-                            Size = UDim2.new(1, -20, 0, 16),
-                            Text = desc,
-                            TextColor3 = COLORS.SubText,
-                            TextSize = 9,
-                            Font = Enum.Font.Gotham,
-                            TextXAlignment = Enum.TextXAlignment.Left,
-                            TextTruncate = Enum.TextTruncate.AtEnd,
-                            ZIndex = 18,
-                        }
-                    )
-                end
-
                 local sliderHolder = New(
                     "Frame",
                     {
                         Parent = root,
-                        Position = UDim2.fromOffset(
-                            11,
-                            desc ~= "" and 49 or 38
-                        ),
-                        Size = UDim2.new(1, -22, 0, 10),
+                        Position = UDim2.fromOffset(11, trackY),
+                        Size = UDim2.new(1, -22, 0, trackHeight),
                         BackgroundTransparency = 1,
                         ZIndex = 18,
                     }
                 )
 
+                -- Bigger, theme-colored track "rectangle UI" - a dim
+                -- tint of the active theme's accent, not a flat gray,
+                -- so switching themes restyles the slider background
+                -- too, not just the fill/value text.
                 local track = New(
                     "Frame",
                     {
                         Parent = sliderHolder,
-                        Position = UDim2.new(0, 0, 0.5, -3),
-                        Size = UDim2.new(1, 0, 0, 6),
-                        BackgroundColor3 = COLORS.Panel2,
+                        Position = UDim2.new(0, 0, 0.5, -(trackHeight / 2)),
+                        Size = UDim2.new(1, 0, 0, trackHeight),
+                        BackgroundColor3 = CurrentTheme().Accent,
+                        BackgroundTransparency = 0.85,
                         BorderSizePixel = 0,
                         ZIndex = 18,
                     }
                 )
 
-                AddCorner(track, 5)
+                AddCorner(track, math.floor(trackHeight / 2))
 
                 Stroke(
                     track,
@@ -5164,7 +5162,11 @@ function DarkyUIGen2:CreateWindow(config)
                     }
                 )
 
-                AddCorner(fill, 5)
+                AddCorner(fill, math.floor(trackHeight / 2))
+
+                -- Bigger knob to match the thicker track (was 12x12
+                -- on a 6px track; now scaled up with it).
+                local knobSize = trackHeight + 6
 
                 local knob = New(
                     "Frame",
@@ -5172,14 +5174,39 @@ function DarkyUIGen2:CreateWindow(config)
                         Parent = track,
                         AnchorPoint = Vector2.new(0.5, 0.5),
                         Position = UDim2.new(0, 0, 0.5, 0),
-                        Size = UDim2.fromOffset(12, 12),
+                        Size = UDim2.fromOffset(knobSize, knobSize),
                         BackgroundColor3 = COLORS.White,
                         BorderSizePixel = 0,
                         ZIndex = 20,
                     }
                 )
 
-                AddCorner(knob, 5)
+                AddCorner(knob, math.floor(knobSize / 2))
+
+                Stroke(
+                    knob,
+                    COLORS.Border,
+                    1
+                )
+
+                if desc ~= "" then
+                    New(
+                        "TextLabel",
+                        {
+                            Parent = root,
+                            BackgroundTransparency = 1,
+                            Position = UDim2.fromOffset(11, descY),
+                            Size = UDim2.new(1, -20, 0, 16),
+                            Text = desc,
+                            TextColor3 = COLORS.SubText,
+                            TextSize = 9,
+                            Font = Enum.Font.Gotham,
+                            TextXAlignment = Enum.TextXAlignment.Left,
+                            TextTruncate = Enum.TextTruncate.AtEnd,
+                            ZIndex = 18,
+                        }
+                    )
+                end
 
                 local drag = New(
                     "TextButton",
@@ -5253,6 +5280,9 @@ function DarkyUIGen2:CreateWindow(config)
                     if not root.Parent then
                         return
                     end
+
+                    track.BackgroundColor3 =
+                        colors.Accent
 
                     fill.BackgroundColor3 =
                         colors.Accent
@@ -5403,6 +5433,8 @@ function DarkyUIGen2:CreateWindow(config)
                     }
                 )
 
+                AddCorner(root, 10)
+
                 Stroke(
                     root,
                     COLORS.Border,
@@ -5454,6 +5486,8 @@ function DarkyUIGen2:CreateWindow(config)
                         ZIndex = 18,
                     }
                 )
+
+                AddCorner(box, 8)
 
                 Stroke(
                     box,
