@@ -3,23 +3,9 @@
 -- Clean single-file Roblox UI library
 --========================================================
 -- Features:
---   • 550x340 main window
---   • PC + mobile window dragging
---   • Draggable floating minimize/restore button
---   • Square corners
---   • Search bar
---   • Profile + username
---   • Lucide icon names + Roblox asset IDs
---   • Tabs with scrolling
---   • Auto-sized independent sections (NO section Size option)
---   • Automatic page scrolling only when content overflows
---   • Button / Toggle / Slider / Input / Dropdown
---   • Centered searchable dropdown popup
---   • Themes: Red / BlueSky / White / Yellow / Green / Purple / Orange
---   • Theme affects toggle + slider + KeySystem accent only
---   • Notification automatically uses Window.Image
---   • KeySystem can be created BEFORE CreateWindow
---   • Optional saved key
+--   • Background Darker
+--   • Rework UserProfile
+--   • Rework Slider
 --========================================================
 
 local DarkyUIGen2 = {}
