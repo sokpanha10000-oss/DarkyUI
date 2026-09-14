@@ -42,7 +42,7 @@ local LocalPlayer = Players.LocalPlayer
 -- CONSTANTS
 --========================================================
 
-local WINDOW_WIDTH = 320
+local WINDOW_WIDTH = 540
 local WINDOW_HEIGHT = 340
 
 local MAIN_GUI_NAME = "DarkyUIGen2_Main"
@@ -101,6 +101,11 @@ local THEMES = {
     Orange = {
         Accent = Color3.fromRGB(220, 100, 30),
         Accent2 = Color3.fromRGB(245, 135, 55),
+    },
+
+    Gray = {
+        Accent = Color3.fromRGB(120, 120, 132),
+        Accent2 = Color3.fromRGB(160, 160, 172),
     },
 }
 
@@ -621,9 +626,27 @@ local function New(className, properties)
     local object = Instance.new(className)
 
     for property, value in pairs(properties or {}) do
-        pcall(function()
+        local ok, err = pcall(function()
             object[property] = value
         end)
+
+        -- Property assignment failures used to fail completely
+        -- silently (e.g. a nil color from a bad theme/COLORS lookup
+        -- would just leave the Roblox default white background with
+        -- no indication anything was wrong). Surface it instead so
+        -- broken colors/props are visible in the output during
+        -- development, without ever throwing and aborting the whole
+        -- UI build.
+        if not ok then
+            warn(
+                ("[DarkyUIGen2] Failed to set %s.%s = %s (%s)"):format(
+                    className,
+                    tostring(property),
+                    tostring(value),
+                    tostring(err)
+                )
+            )
+        end
     end
 
     return object
@@ -6447,7 +6470,7 @@ function DarkyUIGen2:CreateWindow(config)
                             if isDivider then matches = true end
 
                             if matches then
-                                shown += 1
+                                shown = shown + 1
 
                                 if isDivider then
                                     New("Frame", { Parent=optionList, Size=UDim2.new(1,0,0,1), BackgroundColor3=COLORS.Border,
@@ -6811,8 +6834,8 @@ function DarkyUIGen2:CreateWindow(config)
                 setValue(current)
                 task.spawn(function()
                     while spinner.Parent do
-                        spinner.Rotation += 360
-                        task.wait(0.8)
+                        spinner.Rotation = (spinner.Rotation + 45) % 360
+                        task.wait(0.08)
                     end
                 end)
                 local object={Root=root}
