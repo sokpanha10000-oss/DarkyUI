@@ -7575,6 +7575,13 @@ function DarkyUIGen2:CreateWindow(config)
                     or ResolveThemeName(DarkyUIGen2.CurrentTheme)
                     or names[1]
 
+                -- Declared up front (before the swatch click handlers
+                -- below, which reference it) so every swatch closes
+                -- over *this* colorpicker's own object instead of
+                -- accidentally sharing one global across every
+                -- CreateColorpicker on the hub.
+                local object
+
                 local root = New(
                     "Frame",
                     {
@@ -7810,6 +7817,8 @@ function DarkyUIGen2:CreateWindow(config)
                     typeof(colorpickerConfig.Default) == "Color3"
                     and colorpickerConfig.Default
                     or Color3.fromRGB(255, 255, 255)
+
+                local object
 
                 local root = New(
                     "Frame",
@@ -9754,8 +9763,15 @@ function DarkyUIGen2:CreateWindow(config)
                 )
 
                 if hasIcon then
+                    -- Textarea: pin near the top-right corner using
+                    -- scale (1, 0) so it tracks the box's actual
+                    -- rendered width, not the raw UDim2 Offset
+                    -- component (box.Size.X.Offset is the -20 literal
+                    -- from the Size expression above, not a pixel
+                    -- width, so anchoring off of it directly placed
+                    -- the icon off-screen).
                     local iconPosition = isTextarea
-                        and UDim2.fromOffset(box.Size.X.Offset - 24, 7)
+                        and UDim2.new(1, -24, 0, 7)
                         or UDim2.new(1, -24, 0.5, -7)
 
                     Icon(
