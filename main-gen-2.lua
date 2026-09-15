@@ -49,7 +49,12 @@ local DarkyUIGen2 = {}
 --   Blur = true/false                     Window aura/blur-style effect.
 --
 -- Elements:
---   Button    = action; Title/Desc/Icon/IconAlign/IconColor/Color/Locked.
+--   Button    = action; Title/Desc/Icon/IconAlign/IconColor/BackgroundColor/Locked.
+--               IconAlign = "Left" / "Right" / "Between".
+--               Between duplicates the same icon on both sides.
+--               Title + Desc are centered for the new full-button style.
+--   Section   = Title/Desc/Icon/Box/BoxBorder/Opened/TextTransparency/DescTextTransparency.
+--               Clicking the section header expands/collapses its elements.
 --   Dropdown = normal values or rich values; Multi supported.
 --   Toggle   = Type "Toggle" or "Checkbox".
 --   Slider   = Value {Min, Max, Default}; Step supported.
@@ -992,6 +997,61 @@ end
 local function CurrentTheme()
     return THEMES[DarkyUIGen2.CurrentTheme]
         or THEMES.BlueSky
+end
+
+local function ResolveStyleColor(value, fallback)
+    if typeof(value) == "Color3" then
+        return value
+    end
+
+    if type(value) ~= "string" then
+        return fallback
+    end
+
+    local direct = {
+        Red = Color3.fromRGB(220, 55, 70),
+        Blue = Color3.fromRGB(50, 110, 245),
+        BlueSky = THEMES.BlueSky.Accent,
+        White = Color3.fromRGB(245, 245, 250),
+        Yellow = THEMES.Yellow.Accent,
+        Green = THEMES.Green.Accent,
+        Purple = THEMES.Purple.Accent,
+        Orange = THEMES.Orange.Accent,
+        Black = Color3.fromRGB(5, 5, 7),
+        Gray = Color3.fromRGB(70, 70, 78),
+        Grey = Color3.fromRGB(70, 70, 78),
+    }
+
+    local lower = value:lower()
+    for name, color in pairs(direct) do
+        if name:lower() == lower then
+            return color
+        end
+    end
+
+    local theme = nil
+    for name, data in pairs(THEMES) do
+        if name:lower() == lower then
+            theme = data
+            break
+        end
+    end
+
+    if theme then
+        return theme.Accent
+    end
+
+    local hex = value:match("^#(%x%x%x%x%x%x)$")
+    if hex then
+        local ok, color = pcall(function()
+            return Color3.fromHex("#" .. hex)
+        end)
+        if ok then
+            return color
+        end
+    end
+
+    return fallback
 end
 
 local function RegisterTheme(callback)
@@ -4991,173 +5051,207 @@ function DarkyUIGen2:CreateWindow(config)
                 EnsureDefaultPageRegistered()
             end
 
-            -- Belt-and-suspenders: whatever page this section is
-            -- about to land on, make sure its Frame.Visible actually
-            -- matches reality right now - it should be showing if
-            -- it's this tab's current page AND this tab is selected.
-            -- Sections/elements are meant to be visible immediately
-            -- with no PageTab required at all; PageTab only exists
-            -- for people who explicitly want extra pages within the
-            -- same tab, it's never a requirement to see anything.
             if targetPage == Tab._ActivePage then
                 targetPage.Frame.Visible = Tab.Selected == true
             end
 
             local Section = {
-                Title = sectionConfig.Title or "Section",
+                Title = tostring(sectionConfig.Title or "Section"),
+                Desc = tostring(sectionConfig.Desc or ""),
+                Icon = sectionConfig.Icon,
+                Box = sectionConfig.Box == true,
+                BoxBorder = sectionConfig.BoxBorder == true,
+                Opened = sectionConfig.Opened ~= false,
             }
 
-            local targetColumn, _, columnIndex =
-                targetPage._NextColumn()
-
+            local targetColumn, _, columnIndex = targetPage._NextColumn()
             targetPage._NextOrder = targetPage._NextOrder + 1
 
-            -- No Size property. Fully automatic; width is always the
-            -- full width of whichever column it lands in, and height
-            -- follows its own content regardless of the other column.
-            local sectionFrame = New(
-                "Frame",
-                {
-                    Parent = targetColumn,
-                    Name = "Section_" .. Section.Title,
-                    Size = UDim2.new(1, 0, 0, 0),
-                    AutomaticSize = Enum.AutomaticSize.Y,
-                    BackgroundColor3 = COLORS.Background2,
-                    BorderSizePixel = 0,
-                    LayoutOrder = targetPage._NextOrder,
-                    ZIndex = 13,
-                }
-            )
+            local sectionFrame = New("Frame", {
+                Parent = targetColumn,
+                Name = "Section_" .. Section.Title,
+                Size = UDim2.new(1, 0, 0, 0),
+                AutomaticSize = Enum.AutomaticSize.Y,
+                BackgroundColor3 = Section.Box and COLORS.Background2 or COLORS.Background2,
+                BackgroundTransparency = Section.Box and 0 or 1,
+                BorderSizePixel = 0,
+                ClipsDescendants = true,
+                LayoutOrder = targetPage._NextOrder,
+                ZIndex = 13,
+            })
 
             Section.Column = columnIndex
             Section.Page = targetPage
             Section._Tab = Tab
+            Section.Frame = sectionFrame
 
-            -- Gen-2: every new section fades in instead of just
-            -- appearing instantly. Transparency-only (no UIScale) so
-            -- it can't ever transiently distort AbsolutePosition/
-            -- AbsoluteSize for anything inside that depends on those
-            -- being stable immediately (e.g. the slider's drag math).
-            sectionFrame.BackgroundTransparency = 1
+            if Section.Box and Section.BoxBorder then
+                Stroke(sectionFrame, COLORS.Border, 1)
+            end
 
-            Tween(
-                sectionFrame,
-                FAST,
-                { BackgroundTransparency = 0 }
-            )
+            if Section.Box then
+                AddCorner(sectionFrame, 10)
+            end
 
-            Section.Icon = sectionConfig.Icon
-
-            AddCorner(sectionFrame, 10)
-
-            Stroke(
-                sectionFrame,
-                COLORS.Border,
-                1
-            )
-
-            Padding(
-                sectionFrame,
-                6,
-                6,
-                5,
-                6
-            )
-
-            AddSectionAccent(sectionFrame)
-
-            local hasSectionIcon = Section.Icon ~= nil
-                and Section.Icon ~= ""
+            local hasSectionIcon = Section.Icon ~= nil and Section.Icon ~= ""
+            local iconWidth = hasSectionIcon and 20 or 0
+            local titleX = 8 + iconWidth
 
             if hasSectionIcon then
-                Section._IconObject = IconOrBadge(
+                Section._IconObject = Icon(
                     sectionFrame,
                     Section.Icon,
-                    14,
-                    UDim2.fromOffset(6, 3),
                     16,
-                    Section.Title
+                    UDim2.fromOffset(7, 8),
+                    17,
+                    true
                 )
             end
 
-            New(
-                "TextLabel",
-                {
-                    Parent = sectionFrame,
-                    Position = hasSectionIcon
-                        and UDim2.fromOffset(24, 0)
-                        or UDim2.fromOffset(6, 0),
-                    Size = hasSectionIcon
-                        and UDim2.new(1, -24, 0, 20)
-                        or UDim2.new(1, -6, 0, 20),
+            local header = New("TextButton", {
+                Parent = sectionFrame,
+                Size = UDim2.new(1, 0, 0, Section.Desc ~= "" and 48 or 32),
+                BackgroundTransparency = 1,
+                AutoButtonColor = false,
+                Text = "",
+                Active = true,
+                ZIndex = 18,
+            })
+
+            local titleLabel = New("TextLabel", {
+                Parent = header,
+                Position = UDim2.fromOffset(titleX, 4),
+                Size = UDim2.new(1, -titleX - 32, 0, 20),
+                BackgroundTransparency = 1,
+                Text = Section.Title,
+                TextColor3 = COLORS.Text,
+                TextTransparency = tonumber(sectionConfig.TextTransparency) or 0,
+                TextSize = 12,
+                Font = Enum.Font.GothamBold,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                TextTruncate = Enum.TextTruncate.AtEnd,
+                ZIndex = 19,
+            })
+
+            local descLabel
+            if Section.Desc ~= "" then
+                descLabel = New("TextLabel", {
+                    Parent = header,
+                    Position = UDim2.fromOffset(titleX, 24),
+                    Size = UDim2.new(1, -titleX - 32, 0, 17),
                     BackgroundTransparency = 1,
-                    Text = Section.Title,
-                    TextColor3 = COLORS.Text,
-                    TextSize = 12,
-                    Font = Enum.Font.GothamBold,
+                    Text = Section.Desc,
+                    TextColor3 = COLORS.SubText,
+                    TextTransparency = tonumber(sectionConfig.DescTextTransparency) or 0.4,
+                    TextSize = 9,
+                    Font = Enum.Font.Gotham,
                     TextXAlignment = Enum.TextXAlignment.Left,
-                    ZIndex = 16,
-                }
-            )
+                    TextTruncate = Enum.TextTruncate.AtEnd,
+                    ZIndex = 19,
+                })
+            end
 
-            local holder = New(
-                "Frame",
-                {
-                    Parent = sectionFrame,
-                    Position = UDim2.fromOffset(0, 25),
-                    Size = UDim2.new(1, 0, 0, 0),
-                    AutomaticSize = Enum.AutomaticSize.Y,
-                    BackgroundTransparency = 1,
-                    BorderSizePixel = 0,
-                    ZIndex = 14,
-                }
+            local arrow = Icon(
+                header,
+                "chevron-down",
+                16,
+                UDim2.new(1, -25, 0, 9),
+                20,
+                false
             )
+            if arrow then
+                arrow.Rotation = Section.Opened and 0 or -90
+            end
 
-            New(
-                "UIListLayout",
-                {
-                    Parent = holder,
-                    FillDirection = Enum.FillDirection.Vertical,
-                    HorizontalAlignment = Enum.HorizontalAlignment.Center,
-                    SortOrder = Enum.SortOrder.LayoutOrder,
-                    Padding = UDim.new(0, 4),
-                }
-            )
+            local holderTop = Section.Desc ~= "" and 48 or 32
+            local holder = New("Frame", {
+                Parent = sectionFrame,
+                Position = UDim2.fromOffset(0, holderTop),
+                Size = UDim2.new(1, 0, 0, 0),
+                AutomaticSize = Enum.AutomaticSize.Y,
+                BackgroundTransparency = 1,
+                BorderSizePixel = 0,
+                Visible = Section.Opened,
+                ZIndex = 14,
+            })
 
-            Section.Frame = sectionFrame
+            local holderLayout = New("UIListLayout", {
+                Parent = holder,
+                FillDirection = Enum.FillDirection.Vertical,
+                HorizontalAlignment = Enum.HorizontalAlignment.Center,
+                SortOrder = Enum.SortOrder.LayoutOrder,
+                Padding = UDim.new(0, 4),
+            })
+
             Section.Holder = holder
             Section.Elements = {}
+            Section.Header = header
+            Section.Arrow = arrow
+            Section._Expanded = Section.Opened
 
-            table.insert(
-                Tab.Sections,
-                Section
-            )
-
-            table.insert(
-                targetPage.Sections,
-                Section
-            )
+            table.insert(Tab.Sections, Section)
+            table.insert(targetPage.Sections, Section)
 
             local function Register(root, title, desc)
                 AddCorner(root, 8)
-                local record = {
-                    Root = root,
-                    Title = title,
-                    Desc = desc,
-                }
-
-                table.insert(
-                    Window.Elements,
-                    record
-                )
-
-                table.insert(
-                    Section.Elements,
-                    record
-                )
-
+                local record = { Root = root, Title = title, Desc = desc }
+                table.insert(Window.Elements, record)
+                table.insert(Section.Elements, record)
                 return record
             end
+
+            local function UpdateSectionVisual(opened, animate)
+                Section._Expanded = opened
+                if arrow then
+                    Tween(arrow, animate and MED or FAST, {
+                        Rotation = opened and 0 or -90,
+                    })
+                end
+
+                holder.Visible = true
+                task.defer(function()
+                    if not sectionFrame.Parent then return end
+                    local contentHeight = holder.AbsoluteSize.Y
+                    local targetHeight = (opened and contentHeight or 0) + holderTop
+                    local wasAuto = sectionFrame.AutomaticSize
+                    sectionFrame.AutomaticSize = Enum.AutomaticSize.None
+                    if animate then
+                        Tween(sectionFrame, MED, {
+                            Size = UDim2.new(1, 0, 0, math.max(holderTop, targetHeight)),
+                        })
+                    else
+                        sectionFrame.Size = UDim2.new(1, 0, 0, math.max(holderTop, targetHeight))
+                    end
+                    if opened then
+                        task.delay(0.20, function()
+                            if sectionFrame.Parent then
+                                sectionFrame.AutomaticSize = wasAuto or Enum.AutomaticSize.Y
+                            end
+                        end)
+                    else
+                        task.delay(0.20, function()
+                            if sectionFrame.Parent then
+                                holder.Visible = false
+                                sectionFrame.AutomaticSize = Enum.AutomaticSize.None
+                                sectionFrame.Size = UDim2.new(1, 0, 0, holderTop)
+                            end
+                        end)
+                    end
+                end)
+            end
+
+            function Section:SetOpen(value, animate)
+                UpdateSectionVisual(value == true, animate ~= false)
+            end
+
+            function Section:IsOpen()
+                return Section._Expanded == true
+            end
+
+            header.MouseButton1Click:Connect(function()
+                ClickPop(header)
+                Section:SetOpen(not Section._Expanded, true)
+            end)
 
             --============================================
             -- BUTTON
@@ -5169,148 +5263,107 @@ function DarkyUIGen2:CreateWindow(config)
                 local title = tostring(buttonConfig.Title or "Button")
                 local desc = tostring(buttonConfig.Desc or "")
                 local locked = buttonConfig.Locked == true
-                local lockedTitle = tostring(
-                    buttonConfig.LockedTitle or "Locked"
+                local lockedTitle = tostring(buttonConfig.LockedTitle or "Locked")
+                local iconAlign = tostring(buttonConfig.IconAlign or "Right"):lower()
+                local hasIcon = buttonConfig.Icon ~= nil and tostring(buttonConfig.Icon) ~= ""
+                local height = desc ~= "" and 58 or 42
+
+                local normalColor = ResolveStyleColor(
+                    buttonConfig.BackgroundColor ~= nil and buttonConfig.BackgroundColor or buttonConfig.Color,
+                    COLORS.Panel
+                )
+                local hoverColor = ResolveStyleColor(
+                    buttonConfig.HoverColor,
+                    CurrentTheme().Accent2
+                )
+                local iconColor = ResolveStyleColor(
+                    buttonConfig.IconColor,
+                    COLORS.White
                 )
 
-                local height = desc ~= "" and 52 or 36
-
-                local root = New(
-                    "Frame",
-                    {
-                        Parent = holder,
-                        Size = UDim2.new(1, 0, 0, height),
-                        BackgroundColor3 = COLORS.Panel,
-                        BorderSizePixel = 0,
-                        ZIndex = 15,
-                    }
-                )
-
+                local root = New("Frame", {
+                    Parent = holder,
+                    Size = UDim2.new(1, 0, 0, height),
+                    BackgroundColor3 = normalColor,
+                    BackgroundTransparency = 0,
+                    BorderSizePixel = 0,
+                    ZIndex = 15,
+                })
                 Stroke(root, COLORS.Border, 1)
 
-                local click = New(
-                    "TextButton",
-                    {
-                        Parent = root,
-                        Size = UDim2.fromScale(1, 1),
-                        BackgroundTransparency = 1,
-                        AutoButtonColor = false,
-                        Text = "",
-                        Active = not locked,
-                        ZIndex = 17,
-                    }
-                )
+                local click = New("TextButton", {
+                    Parent = root,
+                    Size = UDim2.fromScale(1, 1),
+                    BackgroundTransparency = 1,
+                    AutoButtonColor = false,
+                    Text = "",
+                    Active = not locked,
+                    ZIndex = 17,
+                })
 
-                local iconSize = 15
-                local iconAlign = tostring(
-                    buttonConfig.IconAlign or "Right"
-                )
+                local displayedTitle = locked and (lockedTitle ~= "" and lockedTitle or title) or title
+                local titleLabel
+                local descLabel
 
-                local iconObject
-
-                if buttonConfig.Icon ~= nil then
-                    if iconAlign:lower() == "left" then
-                        iconObject = Icon(
-                            root,
-                            buttonConfig.Icon,
-                            iconSize,
-                            UDim2.fromOffset(10, desc ~= "" and 18 or 10),
-                            19,
-                            title
-                        )
-                    else
-                        iconObject = Icon(
-                            root,
-                            buttonConfig.Icon,
-                            iconSize,
-                            UDim2.new(1, -27, 0.5, -8),
-                            19,
-                            title
-                        )
-                    end
-                else
-                    iconObject = Icon(
-                        root,
-                        locked and "lock" or "chevron-right",
-                        15,
-                        UDim2.new(1, -27, 0.5, -8),
-                        19,
-                        title
-                    )
-                end
-
-                if iconObject and buttonConfig.IconColor ~= nil then
-                    pcall(function()
-                        iconObject.ImageColor3 =
-                            buttonConfig.IconColor
-                    end)
-                elseif iconObject and locked then
-                    iconObject.ImageColor3 = COLORS.Warning
-                end
-
-                New(
-                    "TextLabel",
-                    {
-                        Parent = root,
-                        BackgroundTransparency = 1,
-                        Position = UDim2.fromOffset(
-                            iconAlign:lower() == "left" and 34 or 11,
-                            desc ~= "" and 7 or 0
-                        ),
-                        Size = UDim2.new(
-                            1,
-                            iconAlign:lower() == "left" and -70 or -48,
-                            0,
-                            20
-                        ),
-                        Text = locked and (
-                            lockedTitle ~= "" and lockedTitle or title
-                        ) or title,
-                        TextColor3 = locked and COLORS.Muted or COLORS.Text,
-                        TextSize = 11,
-                        Font = Enum.Font.GothamMedium,
-                        TextXAlignment = Enum.TextXAlignment.Left,
-                        TextTruncate = Enum.TextTruncate.AtEnd,
-                        ZIndex = 18,
-                    }
-                )
+                local titleWidthPad = (iconAlign == "between" and hasIcon) and 52 or (hasIcon and 36 or 20)
+                titleLabel = New("TextLabel", {
+                    Parent = root,
+                    AnchorPoint = Vector2.new(0.5, 0),
+                    Position = UDim2.new(0.5, 0, 0, desc ~= "" and 8 or 10),
+                    Size = UDim2.new(1, -titleWidthPad, 0, 20),
+                    BackgroundTransparency = 1,
+                    Text = displayedTitle,
+                    TextColor3 = locked and COLORS.Muted or COLORS.Text,
+                    TextSize = 12,
+                    Font = Enum.Font.GothamBold,
+                    TextXAlignment = Enum.TextXAlignment.Center,
+                    TextTruncate = Enum.TextTruncate.AtEnd,
+                    ZIndex = 18,
+                })
 
                 if desc ~= "" then
-                    New(
-                        "TextLabel",
-                        {
-                            Parent = root,
-                            BackgroundTransparency = 1,
-                            Position = UDim2.fromOffset(
-                                iconAlign:lower() == "left" and 34 or 11,
-                                29
-                            ),
-                            Size = UDim2.new(1, -45, 0, 16),
-                            Text = desc,
-                            TextColor3 = COLORS.SubText,
-                            TextSize = 9,
-                            Font = Enum.Font.Gotham,
-                            TextXAlignment = Enum.TextXAlignment.Left,
-                            TextTruncate = Enum.TextTruncate.AtEnd,
-                            ZIndex = 18,
-                        }
-                    )
+                    descLabel = New("TextLabel", {
+                        Parent = root,
+                        AnchorPoint = Vector2.new(0.5, 0),
+                        Position = UDim2.new(0.5, 0, 0, 30),
+                        Size = UDim2.new(1, -20, 0, 16),
+                        BackgroundTransparency = 1,
+                        Text = desc,
+                        TextColor3 = locked and COLORS.Muted or COLORS.SubText,
+                        TextSize = 9,
+                        Font = Enum.Font.Gotham,
+                        TextXAlignment = Enum.TextXAlignment.Center,
+                        TextTruncate = Enum.TextTruncate.AtEnd,
+                        ZIndex = 18,
+                    })
                 end
 
-                local normalColor = buttonConfig.Color
-                    or COLORS.Panel
-
-                local hoverColor = COLORS.Panel2
-
-                root.BackgroundColor3 = normalColor
-
-                local function clickCallback()
-                    if locked then
-                        return
+                local iconSize = 17
+                local leftIcon, rightIcon
+                if hasIcon then
+                    if iconAlign == "left" or iconAlign == "between" then
+                        leftIcon = Icon(root, buttonConfig.Icon, iconSize, UDim2.fromOffset(10, math.floor(height / 2) - 8), 19, false)
                     end
+                    if iconAlign == "right" or iconAlign == "between" then
+                        rightIcon = Icon(root, buttonConfig.Icon, iconSize, UDim2.new(1, -27, 0, math.floor(height / 2) - 8), 19, false)
+                    end
+                end
 
+                for _, iconObject in ipairs({leftIcon, rightIcon}) do
+                    if iconObject then
+                        iconObject.ImageColor3 = locked and COLORS.Muted or iconColor
+                    end
+                end
+
+                local function applyColor(color)
+                    if root and root.Parent then
+                        root.BackgroundColor3 = color
+                    end
+                end
+
+                local function activate()
+                    if locked then return end
                     ClickPop(root)
-
                     if typeof(buttonConfig.Callback) == "function" then
                         task.spawn(buttonConfig.Callback)
                     end
@@ -5318,24 +5371,34 @@ function DarkyUIGen2:CreateWindow(config)
 
                 if not locked then
                     click.MouseEnter:Connect(function()
-                        Tween(root, FAST, {
-                            BackgroundColor3 = hoverColor
-                        })
+                        Tween(root, FAST, { BackgroundColor3 = hoverColor })
                     end)
-
                     click.MouseLeave:Connect(function()
-                        Tween(root, FAST, {
-                            BackgroundColor3 = normalColor
-                        })
+                        Tween(root, FAST, { BackgroundColor3 = normalColor })
                     end)
-
-                    click.MouseButton1Click:Connect(clickCallback)
+                    click.MouseButton1Click:Connect(activate)
                 end
 
                 local object = {
                     Root = root,
                     Button = click,
+                    Title = titleLabel,
+                    Description = descLabel,
+                    Icon = leftIcon or rightIcon,
+                    LeftIcon = leftIcon,
+                    RightIcon = rightIcon,
                 }
+
+                function object:SetBackgroundColor(color)
+                    normalColor = ResolveStyleColor(color, normalColor)
+                    applyColor(normalColor)
+                end
+
+                function object:SetLocked(value)
+                    locked = value == true
+                    click.Active = not locked
+                    titleLabel.Text = locked and (lockedTitle ~= "" and lockedTitle or title) or title
+                end
 
                 Register(root, title, desc)
                 return object
@@ -5343,6 +5406,7 @@ function DarkyUIGen2:CreateWindow(config)
 
             --============================================
             -- TOGGLE
+
             --============================================
 
             function Section:CreateToggle(toggleConfig)
@@ -7380,5 +7444,32 @@ end
 --     Callback = function(text) end,
 -- })
 --========================================================
+
+-- Section usage:
+-- local Section1 = Tab:CreateSection({
+--     Title = "General Settings",
+--     Desc = "Section description", -- optional
+--     Icon = "settings", -- lucide icon or "rbxassetid://". optional
+--     Box = false, -- show a box around the section
+--     BoxBorder = false, -- show a border when Box = true
+--     Opened = true, -- expanded by default
+--     TextTransparency = 0.05, -- title transparency
+--     DescTextTransparency = 0.4, -- description transparency
+-- })
+--
+-- Button usage:
+-- Section1:CreateButton({
+--     Title = "Click Me",
+--     Desc = "Button description", -- optional
+--     Icon = "mouse-pointer-click", -- optional
+--     IconAlign = "Between", -- "Left", "Right", or "Between"
+--     IconColor = "Red", -- Color3, color name, theme name, or #RRGGBB
+--     BackgroundColor = "BlueSky", -- button background color
+--     Locked = false, -- disable button. optional
+--     LockedTitle = "Locked", -- text shown when locked. optional
+--     Callback = function()
+--         print("Clicked!")
+--     end
+-- })
 
 return DarkyUIGen2
