@@ -82,8 +82,8 @@ local LocalPlayer = Players.LocalPlayer
 -- CONSTANTS
 --========================================================
 
-local WINDOW_WIDTH = 580
-local WINDOW_HEIGHT = 460
+local WINDOW_WIDTH = 550
+local WINDOW_HEIGHT = 350
 
 local MAIN_GUI_NAME = "DarkyUIGen2_Main"
 local KEY_GUI_NAME = "DarkyUIGen2_KeySystem"
@@ -6913,30 +6913,52 @@ function DarkyUIGen2:CreateWindow(config)
                     UDim2.new(0.5, -7.5, 0.5, -7.5), 20, false)
                 if clickIcon then clickIcon.ImageColor3 = CurrentTheme().Accent end
 
+                -- Popup lives in its own CoreGui overlay so it is never clipped by
+                -- the page/section holder. It behaves like an extra floating element.
+                local popupGui = New("ScreenGui", {
+                    Name = "DarkyUI_ColorpickerPopup",
+                    Parent = CoreGui,
+                    IgnoreGuiInset = true,
+                    ResetOnSpawn = false,
+                    ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+                    DisplayOrder = 2147483000,
+                })
+
                 local popup = New("Frame", {
-                    Parent = holder, AnchorPoint = Vector2.new(1, 0),
-                    Position = UDim2.new(1, -6, 0, root.AbsolutePosition.Y - holder.AbsolutePosition.Y + rootHeight + 6),
-                    Size = UDim2.fromOffset(190, 265), BackgroundColor3 = COLORS.Panel,
-                    BorderSizePixel = 0, Visible = false, ZIndex = 200, ClipsDescendants = true,
+                    Parent = popupGui,
+                    Size = UDim2.fromOffset(190, 265),
+                    BackgroundColor3 = COLORS.Panel,
+                    BorderSizePixel = 0,
+                    Visible = false,
+                    ZIndex = 200,
+                    ClipsDescendants = true,
                 })
                 AddCorner(popup, 8)
                 Stroke(popup, COLORS.Border, 1)
 
                 New("TextLabel", {
-                    Parent = popup, BackgroundTransparency = 1, Position = UDim2.fromOffset(12, 9),
-                    Size = UDim2.new(1, -24, 0, 17), Text = title, TextColor3 = COLORS.Text,
-                    TextSize = 11, Font = Enum.Font.GothamMedium,
+                    Parent = popup, BackgroundTransparency = 1,
+                    Position = UDim2.fromOffset(12, 9),
+                    Size = UDim2.new(1, -24, 0, 17), Text = title,
+                    TextColor3 = COLORS.Text, TextSize = 11, Font = Enum.Font.GothamMedium,
                     TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 202,
                 })
 
-                local list = New("Frame", {
-                    Parent = popup, BackgroundTransparency = 1, Position = UDim2.fromOffset(8, 31),
-                    Size = UDim2.new(1, -16, 1, -39), ZIndex = 201,
+                local list = New("ScrollingFrame", {
+                    Parent = popup, BackgroundTransparency = 1,
+                    Position = UDim2.fromOffset(8, 31), Size = UDim2.new(1, -16, 1, -39),
+                    BorderSizePixel = 0, ScrollBarThickness = 3,
+                    ScrollBarImageColor3 = COLORS.Border, CanvasSize = UDim2.new(),
+                    AutomaticCanvasSize = Enum.AutomaticSize.Y,
+                    ScrollingDirection = Enum.ScrollingDirection.Y,
+                    ZIndex = 201,
                 })
-                local layout = Instance.new("UIListLayout")
-                layout.Padding = UDim.new(0, 5)
-                layout.SortOrder = Enum.SortOrder.LayoutOrder
-                layout.Parent = list
+
+                local layout = New("UIListLayout", {
+                    Parent = list,
+                    Padding = UDim.new(0, 5),
+                    SortOrder = Enum.SortOrder.LayoutOrder,
+                })
 
                 local buttons = {}
 
@@ -6951,91 +6973,207 @@ function DarkyUIGen2:CreateWindow(config)
                         local selected = name == currentName
                         button.BackgroundColor3 = selected and COLORS.Hover or COLORS.Panel2
                         local check = button:FindFirstChild("SelectedCheck")
-                        if check then check.Visible = selected end
+                        if check then
+                            check.Visible = selected
+                        end
                     end
                 end
 
                 local function setColorName(name, callCallback)
-                    if locked or not palette[name] then return end
+                    if locked or not palette[name] then
+                        return
+                    end
                     currentName = name
                     currentColor = palette[name]
                     refreshButtonStates()
-                    if callCallback ~= false then fireCallback() end
+                    if callCallback ~= false then
+                        fireCallback()
+                    end
                 end
 
                 for index, name in ipairs(names) do
                     local item = New("TextButton", {
-                        Parent = list, Size = UDim2.new(1, 0, 0, 28),
-                        BackgroundColor3 = COLORS.Panel2, BorderSizePixel = 0, AutoButtonColor = false,
-                        Text = "", LayoutOrder = index, Active = not locked, ZIndex = 202,
+                        Parent = list,
+                        Size = UDim2.new(1, 0, 0, 28),
+                        BackgroundColor3 = COLORS.Panel2,
+                        BorderSizePixel = 0,
+                        AutoButtonColor = false,
+                        Text = "",
+                        LayoutOrder = index,
+                        Active = not locked,
+                        ZIndex = 202,
                     })
                     AddCorner(item, 6)
                     Stroke(item, COLORS.Border, 1)
 
                     local swatch = New("Frame", {
-                        Parent = item, Position = UDim2.fromOffset(7, 6), Size = UDim2.fromOffset(16, 16),
-                        BackgroundColor3 = palette[name], BorderSizePixel = 0, ZIndex = 203,
+                        Parent = item,
+                        Position = UDim2.fromOffset(7, 6),
+                        Size = UDim2.fromOffset(16, 16),
+                        BackgroundColor3 = palette[name],
+                        BorderSizePixel = 0,
+                        ZIndex = 203,
                     })
                     AddCorner(swatch, 4)
                     Stroke(swatch, COLORS.Border, 1)
 
                     New("TextLabel", {
-                        Parent = item, BackgroundTransparency = 1, Position = UDim2.fromOffset(31, 0),
-                        Size = UDim2.new(1, -60, 1, 0), Text = name, TextColor3 = COLORS.Text,
-                        TextSize = 10, Font = Enum.Font.Gotham,
-                        TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 203,
+                        Parent = item,
+                        BackgroundTransparency = 1,
+                        Position = UDim2.fromOffset(31, 0),
+                        Size = UDim2.new(1, -60, 1, 0),
+                        Text = name,
+                        TextColor3 = COLORS.Text,
+                        TextSize = 10,
+                        Font = Enum.Font.Gotham,
+                        TextXAlignment = Enum.TextXAlignment.Left,
+                        ZIndex = 203,
                     })
 
                     New("TextLabel", {
-                        Name = "SelectedCheck", Parent = item, BackgroundTransparency = 1,
-                        AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -8, 0.5, 0),
-                        Size = UDim2.fromOffset(16, 16), Text = "✓",
-                        TextColor3 = CurrentTheme().Accent, TextSize = 13, Font = Enum.Font.GothamBold,
-                        Visible = false, ZIndex = 204,
+                        Name = "SelectedCheck",
+                        Parent = item,
+                        BackgroundTransparency = 1,
+                        AnchorPoint = Vector2.new(1, 0.5),
+                        Position = UDim2.new(1, -8, 0.5, 0),
+                        Size = UDim2.fromOffset(16, 16),
+                        Text = "✓",
+                        TextColor3 = CurrentTheme().Accent,
+                        TextSize = 13,
+                        Font = Enum.Font.GothamBold,
+                        Visible = false,
+                        ZIndex = 204,
                     })
 
                     item.MouseButton1Click:Connect(function()
-                        if locked then return end
+                        if locked then
+                            return
+                        end
                         setColorName(name, true)
                         popup.Visible = false
                     end)
+
                     buttons[name] = item
                 end
 
-                local function positionPopup()
-                    popup.Position = UDim2.new(1, -6, 0, root.AbsolutePosition.Y - holder.AbsolutePosition.Y + root.AbsoluteSize.Y + 6)
+                local function getRootPoint()
+                    local pos = root.AbsolutePosition
+                    local size = root.AbsoluteSize
+                    return pos, size
                 end
 
+                local function positionPopup()
+                    if not popup or not popup.Parent then
+                        return
+                    end
+
+                    local pos, size = getRootPoint()
+                    local viewport = workspace.CurrentCamera
+                    local viewportSize = viewport and viewport.ViewportSize or Vector2.new(550, 350)
+
+                    local popupWidth = popup.AbsoluteSize.X > 0 and popup.AbsoluteSize.X or 190
+                    local popupHeight = popup.AbsoluteSize.Y > 0 and popup.AbsoluteSize.Y or 265
+
+                    local x = pos.X + size.X - popupWidth
+                    local y = pos.Y + size.Y + 6
+
+                    if x + popupWidth > viewportSize.X - 8 then
+                        x = viewportSize.X - popupWidth - 8
+                    end
+                    if x < 8 then
+                        x = 8
+                    end
+
+                    if y + popupHeight > viewportSize.Y - 8 then
+                        local above = pos.Y - popupHeight - 6
+                        y = above >= 8 and above or math.max(8, viewportSize.Y - popupHeight - 8)
+                    end
+
+                    popup.Position = UDim2.fromOffset(x, y)
+                end
+
+                local trackedScrollConnections = {}
+                local function trackScrollAncestors()
+                    for _, connection in ipairs(trackedScrollConnections) do
+                        pcall(function() connection:Disconnect() end)
+                    end
+                    table.clear(trackedScrollConnections)
+
+                    local ancestor = root.Parent
+                    while ancestor do
+                        if ancestor:IsA("ScrollingFrame") then
+                            table.insert(trackedScrollConnections,
+                                ancestor:GetPropertyChangedSignal("CanvasPosition"):Connect(function()
+                                    if popup.Visible then
+                                        positionPopup()
+                                    end
+                                end)
+                            )
+                        end
+                        ancestor = ancestor.Parent
+                    end
+                end
+                trackScrollAncestors()
+
                 root:GetPropertyChangedSignal("AbsolutePosition"):Connect(function()
-                    if popup.Visible then positionPopup() end
+                    if popup.Visible then
+                        positionPopup()
+                    end
                 end)
                 root:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
-                    if popup.Visible then positionPopup() end
+                    if popup.Visible then
+                        positionPopup()
+                    end
                 end)
 
                 colorButton.MouseButton1Click:Connect(function()
-                    if locked then return end
+                    if locked then
+                        return
+                    end
+
                     popup.Visible = not popup.Visible
                     if popup.Visible then
-                        positionPopup()
                         refreshButtonStates()
+                        positionPopup()
                     end
                 end)
 
                 local inputConnection = UserInputService.InputBegan:Connect(function(input)
-                    if not popup.Visible then return end
-                    if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then return end
+                    if not popup.Visible then
+                        return
+                    end
+
+                    if input.UserInputType ~= Enum.UserInputType.MouseButton1
+                        and input.UserInputType ~= Enum.UserInputType.Touch then
+                        return
+                    end
+
                     local pos = input.Position
                     local p, ps = popup.AbsolutePosition, popup.AbsoluteSize
                     local b, bs = colorButton.AbsolutePosition, colorButton.AbsoluteSize
-                    local insidePopup = pos.X >= p.X and pos.X <= p.X + ps.X and pos.Y >= p.Y and pos.Y <= p.Y + ps.Y
-                    local insideButton = pos.X >= b.X and pos.X <= b.X + bs.X and pos.Y >= b.Y and pos.Y <= b.Y + bs.Y
-                    if not insidePopup and not insideButton then popup.Visible = false end
+
+                    local insidePopup =
+                        pos.X >= p.X and pos.X <= p.X + ps.X
+                        and pos.Y >= p.Y and pos.Y <= p.Y + ps.Y
+
+                    local insideButton =
+                        pos.X >= b.X and pos.X <= b.X + bs.X
+                        and pos.Y >= b.Y and pos.Y <= b.Y + bs.Y
+
+                    if not insidePopup and not insideButton then
+                        popup.Visible = false
+                    end
                 end)
 
                 refreshButtonStates()
 
-                local object = { Root = root, Button = colorButton, Popup = popup, Type = "Colorpicker" }
+                local object = {
+                    Root = root,
+                    Button = colorButton,
+                    Popup = popup,
+                    PopupGui = popupGui,
+                    Type = "Colorpicker",
+                }
 
                 function object:GetValue()
                     return currentColor
@@ -7046,18 +7184,26 @@ function DarkyUIGen2:CreateWindow(config)
                 end
 
                 function object:SetValue(value, callCallback)
-                    if locked then return end
+                    if locked then
+                        return
+                    end
+
                     local name = tostring(value or "")
                     if palette[name] then
                         setColorName(name, callCallback ~= false)
                     elseif typeof(value) == "Color3" then
                         local closestName, closestDistance
                         for candidate, color in pairs(palette) do
-                            local d = (color.R - value.R)^2 + (color.G - value.G)^2 + (color.B - value.B)^2
+                            local d =
+                                (color.R - value.R)^2
+                                + (color.G - value.G)^2
+                                + (color.B - value.B)^2
+
                             if not closestDistance or d < closestDistance then
                                 closestName, closestDistance = candidate, d
                             end
                         end
+
                         setColorName(closestName or "BlueSky", callCallback ~= false)
                     end
                 end
@@ -7065,7 +7211,26 @@ function DarkyUIGen2:CreateWindow(config)
                 function object:SetLocked(value)
                     locked = value == true
                     colorButton.Active = not locked
-                    if locked then popup.Visible = false end
+                    if locked then
+                        popup.Visible = false
+                    end
+                end
+
+                function object:Destroy()
+                    if inputConnection then
+                        pcall(function() inputConnection:Disconnect() end)
+                        inputConnection = nil
+                    end
+                    for _, connection in ipairs(trackedScrollConnections) do
+                        pcall(function() connection:Disconnect() end)
+                    end
+                    table.clear(trackedScrollConnections)
+                    if popupGui and popupGui.Parent then
+                        popupGui:Destroy()
+                    end
+                    if root and root.Parent then
+                        root:Destroy()
+                    end
                 end
 
                 RegisterFlag(colorConfig.Flag, object)
