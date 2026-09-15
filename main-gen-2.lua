@@ -3937,8 +3937,12 @@ function DarkyUIGen2:CreateWindow(config)
     end
 
     --====================================================
-    -- CREATE TAB
+    -- TAB / CREATE TAB
     --====================================================
+
+    function Window:Tab(tabConfig, parentContainer)
+        return self:CreateTab(tabConfig, parentContainer)
+    end
 
     function Window:CreateTab(tabConfig, parentContainer)
         tabConfig = tabConfig or {}
@@ -3946,10 +3950,21 @@ function DarkyUIGen2:CreateWindow(config)
 
         local Tab = {
             Title = tabConfig.Title or "Tab",
+            Desc = tostring(tabConfig.Desc or ""),
             Icon = tabConfig.Icon or "circle",
+            IconColor = tabConfig.IconColor,
+            IconShape = tostring(tabConfig.IconShape or "Square"),
+            IconThemed = tabConfig.IconThemed == true,
+            Locked = tabConfig.Locked == true,
+            ShowTabTitle = tabConfig.ShowTabTitle == true,
+            Border = tabConfig.Border == true,
+            CustomEmptyPage = type(tabConfig.CustomEmptyPage) == "table" and tabConfig.CustomEmptyPage or nil,
             Sections = {},
             Selected = false,
         }
+        if Tab.IconShape ~= "Circle" then
+            Tab.IconShape = "Square"
+        end
 
         local tabButton = New(
             "TextButton",
@@ -3993,21 +4008,41 @@ function DarkyUIGen2:CreateWindow(config)
             "Frame",
             {
                 Parent = tabButton,
-                BackgroundTransparency = 1,
-                Position = UDim2.fromOffset(8, 0),
-                Size = UDim2.fromOffset(38, 38),
+                BackgroundColor3 = COLORS.Panel2,
+                BackgroundTransparency = 0,
+                Position = UDim2.fromOffset(7, 3),
+                Size = UDim2.fromOffset(32, 32),
+                BorderSizePixel = 0,
                 ZIndex = 16,
             }
         )
 
+        if Tab.IconShape == "Circle" then
+            AddCorner(tabIconHolder, 16)
+        else
+            AddCorner(tabIconHolder, 7)
+        end
+
+        if Tab.Border then
+            Stroke(tabIconHolder, COLORS.Border, 1)
+        end
+
         local tabIcon = IconOrBadge(
-            tabIconHolder,
-            Tab.Icon,
-            17,
-            UDim2.new(0.5, -8, 0.5, -8),
-            17,
-            Tab.Title
+            tabIconHolder, Tab.Icon, 17,
+            UDim2.new(0.5, -8, 0.5, -8), 17, Tab.Title
         )
+
+        local tabIconColor = ResolveStyleColor(Tab.IconColor, COLORS.Text)
+        if Tab.IconThemed and tabIcon and tabIcon:IsA("ImageLabel") then
+            tabIcon.ImageColor3 = CurrentTheme().Accent
+            RegisterTheme(function(_, colors)
+                if tabIcon and tabIcon.Parent then
+                    tabIcon.ImageColor3 = colors.Accent
+                end
+            end)
+        elseif tabIcon and tabIcon:IsA("ImageLabel") then
+            tabIcon.ImageColor3 = tabIconColor
+        end
 
         local tabText = New(
             "TextLabel",
@@ -4022,6 +4057,7 @@ function DarkyUIGen2:CreateWindow(config)
                 Font = Enum.Font.GothamMedium,
                 TextXAlignment = Enum.TextXAlignment.Left,
                 TextTruncate = Enum.TextTruncate.AtEnd,
+                Visible = Tab.ShowTabTitle,
                 ZIndex = 17,
             }
         )
@@ -4037,7 +4073,7 @@ function DarkyUIGen2:CreateWindow(config)
 
         local pageCount = 0
 
-        local function BuildPage(pageTitle, pageIcon)
+        local function BuildPage(pageTitle, pageIcon, emptyConfig)
             pageCount = pageCount + 1
 
             local pageFrame = New(
@@ -4193,7 +4229,84 @@ function DarkyUIGen2:CreateWindow(config)
                 _Columns = { columnLeft, columnRight },
                 _RebalanceWidths = RebalanceWidths,
                 _ColumnsRow = columnsRow,
+                EmptyConfig = type(emptyConfig) == "table" and emptyConfig or nil,
+                EmptyPage = nil,
+                _HasContent = false,
             }
+
+            -- Custom empty page belongs to this actual right-side Page.
+            -- It remains visible until the page receives a section.
+            do
+                local empty = pageObj.EmptyConfig
+                if empty then
+                    local emptyFrame = New("Frame", {
+                        Parent = pageFrame,
+                        Name = "CustomEmptyPage",
+                        Size = UDim2.new(1, 0, 0, 220),
+                        BackgroundTransparency = 1,
+                        BorderSizePixel = 0,
+                        LayoutOrder = 0,
+                        Visible = true,
+                        ZIndex = 13,
+                    })
+                    local emptyIconHolder = New("Frame", {
+                        Parent = emptyFrame,
+                        AnchorPoint = Vector2.new(0.5, 0),
+                        Position = UDim2.new(0.5, 0, 0, 34),
+                        Size = UDim2.fromOffset(44, 44),
+                        BackgroundColor3 = COLORS.Panel2,
+                        BorderSizePixel = 0,
+                        ZIndex = 14,
+                    })
+                    AddCorner(emptyIconHolder, 12)
+                    local emptyIcon = IconOrBadge(
+                        emptyIconHolder, empty.Icon or "smile", 22,
+                        UDim2.new(0.5, -11, 0.5, -11), 15,
+                        empty.Title or ""
+                    )
+                    local emptyTitle = New("TextLabel", {
+                        Parent = emptyFrame,
+                        AnchorPoint = Vector2.new(0.5, 0),
+                        Position = UDim2.new(0.5, 0, 0, 86),
+                        Size = UDim2.new(1, -40, 0, 24),
+                        BackgroundTransparency = 1,
+                        Text = tostring(empty.Title or "Empty Page"),
+                        TextColor3 = COLORS.Text,
+                        TextSize = 14,
+                        Font = Enum.Font.GothamBold,
+                        TextXAlignment = Enum.TextXAlignment.Center,
+                        TextTruncate = Enum.TextTruncate.AtEnd,
+                        ZIndex = 14,
+                    })
+                    local emptyDesc = New("TextLabel", {
+                        Parent = emptyFrame,
+                        AnchorPoint = Vector2.new(0.5, 0),
+                        Position = UDim2.new(0.5, 0, 0, 114),
+                        Size = UDim2.new(1, -70, 0, 42),
+                        BackgroundTransparency = 1,
+                        Text = tostring(empty.Desc or ""),
+                        TextColor3 = COLORS.SubText,
+                        TextSize = 10,
+                        Font = Enum.Font.Gotham,
+                        TextWrapped = true,
+                        TextXAlignment = Enum.TextXAlignment.Center,
+                        TextYAlignment = Enum.TextYAlignment.Top,
+                        ZIndex = 14,
+                    })
+                    pageObj.EmptyPage = {
+                        Frame = emptyFrame,
+                        Icon = emptyIcon,
+                        Title = emptyTitle,
+                        Desc = emptyDesc,
+                    }
+                end
+            end
+
+            function pageObj:_UpdateEmptyPage()
+                if not self.EmptyPage then return end
+                self._HasContent = #self.Sections > 0
+                self.EmptyPage.Frame.Visible = not self._HasContent
+            end
 
             -- Sections pair up left/right in the order they're
             -- created: 1st -> left, 2nd -> right (same row), 3rd ->
@@ -4213,7 +4326,7 @@ function DarkyUIGen2:CreateWindow(config)
             return pageObj
         end
 
-        local defaultPageObj = BuildPage("Main")
+        local defaultPageObj = BuildPage("Main", nil, tabConfig.CustomEmptyPage)
         local page = defaultPageObj.Frame
 
         Tab.Button = tabButton
@@ -4223,6 +4336,12 @@ function DarkyUIGen2:CreateWindow(config)
         Tab._ActivePage = defaultPageObj
         Tab._Bar = selectedBar
         Tab._Text = tabText
+        if Tab.Locked then
+            tabText.TextColor3 = COLORS.Muted
+            if tabIcon and tabIcon:IsA("ImageLabel") then
+                tabIcon.ImageColor3 = COLORS.Muted
+            end
+        end
 
         --================================================
         -- PAGE SLIDER (shown only once a 2nd page exists)
@@ -4921,7 +5040,8 @@ function DarkyUIGen2:CreateWindow(config)
 
             local newPageObj = BuildPage(
                 pageConfig.Title or ("Page " .. tostring(#Tab.Pages + 1)),
-                pageConfig.Icon
+                pageConfig.Icon,
+                pageConfig.CustomEmptyPage or tabConfig.CustomEmptyPage
             )
 
             RegisterPage(newPageObj)
@@ -5011,12 +5131,13 @@ function DarkyUIGen2:CreateWindow(config)
         end
 
         tabButton.MouseButton1Click:Connect(function()
+            if Tab.Locked then return end
             ClickPop(tabButton)
             Tab:Select()
         end)
 
         tabButton.MouseEnter:Connect(function()
-            if not Tab.Selected then
+            if not Tab.Selected and not Tab.Locked then
                 Tween(
                     tabButton,
                     FAST,
@@ -5028,7 +5149,7 @@ function DarkyUIGen2:CreateWindow(config)
         end)
 
         tabButton.MouseLeave:Connect(function()
-            if not Tab.Selected then
+            if not Tab.Selected and not Tab.Locked then
                 Tween(
                     tabButton,
                     FAST,
@@ -5191,6 +5312,9 @@ function DarkyUIGen2:CreateWindow(config)
 
             table.insert(Tab.Sections, Section)
             table.insert(targetPage.Sections, Section)
+            if targetPage._UpdateEmptyPage then
+                targetPage:_UpdateEmptyPage()
+            end
 
             local function Register(root, title, desc)
                 AddCorner(root, 8)
@@ -7444,6 +7568,26 @@ end
 --     Callback = function(text) end,
 -- })
 --========================================================
+
+-- Tab usage:
+-- local Tab = Window:CreateTab({
+--     Title = "My Tab",
+--     Desc = "Tab description", -- optional
+--     Icon = "bird", -- lucide icon, rbxassetid://, or URL
+--     IconColor = "BlueSky",
+--     IconShape = "Square", -- "Square" or "Circle"
+--     IconThemed = true, -- use theme colors
+--     Locked = false, -- disable tab interaction
+--     ShowTabTitle = false, -- show title inside the tab
+--     Border = true, -- border around the icon shape
+--     CustomEmptyPage = {
+--         Icon = "smile",
+--         Title = "This is a cool empty tab",
+--         Desc = "I like it. its so great tab with cool 'custom empty page'",
+--     },
+-- })
+
+-- CustomEmptyPage appears in the actual right-side Page when it has no sections/elements.
 
 -- Section usage:
 -- local Section1 = Tab:CreateSection({
