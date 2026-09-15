@@ -3958,6 +3958,7 @@ function DarkyUIGen2:CreateWindow(config)
             Locked = tabConfig.Locked == true,
             ShowTabTitle = tabConfig.ShowTabTitle == true,
             Border = tabConfig.Border == true,
+            BoxColor = tabConfig.BoxColor,
             CustomEmptyPage = type(tabConfig.CustomEmptyPage) == "table" and tabConfig.CustomEmptyPage or nil,
             Sections = {},
             Selected = false,
@@ -4008,7 +4009,7 @@ function DarkyUIGen2:CreateWindow(config)
             "Frame",
             {
                 Parent = tabButton,
-                BackgroundColor3 = COLORS.Panel2,
+                BackgroundColor3 = ResolveStyleColor(Tab.BoxColor, COLORS.Panel2),
                 BackgroundTransparency = 0,
                 Position = UDim2.fromOffset(7, 3),
                 Size = UDim2.fromOffset(32, 32),
@@ -4016,6 +4017,20 @@ function DarkyUIGen2:CreateWindow(config)
                 ZIndex = 16,
             }
         )
+
+        if type(Tab.BoxColor) == "string" then
+            local boxColorName = Tab.BoxColor:lower()
+            for themeName, themeData in pairs(THEMES) do
+                if themeName:lower() == boxColorName then
+                    RegisterTheme(function(_, colors)
+                        if tabIconHolder and tabIconHolder.Parent then
+                            tabIconHolder.BackgroundColor3 = (themeName == "BlueSky" and colors.Accent) or themeData.Accent
+                        end
+                    end)
+                    break
+                end
+            end
+        end
 
         if Tab.IconShape == "Circle" then
             AddCorner(tabIconHolder, 16)
@@ -6457,7 +6472,7 @@ function DarkyUIGen2:CreateWindow(config)
                             1,
                             0,
                             0,
-                            desc ~= "" and 62 or 48
+                            desc ~= "" and 88 or 72
                         ),
                         BackgroundColor3 = COLORS.Panel,
                         BorderSizePixel = 0,
@@ -6476,11 +6491,8 @@ function DarkyUIGen2:CreateWindow(config)
                     {
                         Parent = root,
                         BackgroundTransparency = 1,
-                        Position = UDim2.fromOffset(
-                            11,
-                            desc ~= "" and 7 or 6
-                        ),
-                        Size = UDim2.new(1, -180, 0, 20),
+                        Position = UDim2.fromOffset(11, 7),
+                        Size = UDim2.new(1, -22, 0, 20),
                         Text = title,
                         TextColor3 = locked and COLORS.Muted or COLORS.Text,
                         TextSize = 11,
@@ -6496,7 +6508,7 @@ function DarkyUIGen2:CreateWindow(config)
                         {
                             Parent = root,
                             BackgroundTransparency = 1,
-                            Position = UDim2.fromOffset(11, 28),
+                            Position = UDim2.fromOffset(11, 27),
                             Size = UDim2.new(1, -22, 0, 16),
                             Text = desc,
                             TextColor3 = COLORS.SubText,
@@ -6512,8 +6524,8 @@ function DarkyUIGen2:CreateWindow(config)
                     "TextButton",
                     {
                         Parent = root,
-                        Position = UDim2.new(1, -165, 0.5, -14),
-                        Size = UDim2.fromOffset(154, 28),
+                        Position = UDim2.fromOffset(11, desc ~= "" and 52 or 42),
+                        Size = UDim2.new(1, -22, 0, 28),
                         BackgroundColor3 = COLORS.Panel2,
                         BorderSizePixel = 0,
                         AutoButtonColor = false,
