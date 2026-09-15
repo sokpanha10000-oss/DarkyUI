@@ -6848,16 +6848,28 @@ function DarkyUIGen2:CreateWindow(config)
                 colorConfig = colorConfig or {}
 
                 local title = tostring(colorConfig.Title or "Select Color")
-                local desc = tostring(colorConfig.Desc or "Pick any color")
+                local desc = tostring(colorConfig.Desc or "Choose a theme color")
                 local locked = colorConfig.Locked == true
 
-                local initial = colorConfig.Default
-                if typeof(initial) ~= "Color3" then
-                    initial = Color3.fromRGB(45, 105, 245)
-                end
+                local palette = {
+                    Red = Color3.fromRGB(239, 68, 68),
+                    BlueSky = Color3.fromRGB(59, 130, 246),
+                    Green = Color3.fromRGB(34, 197, 94),
+                    Yellow = Color3.fromRGB(234, 179, 8),
+                    Purple = Color3.fromRGB(168, 85, 247),
+                    Orange = Color3.fromRGB(249, 115, 22),
+                    White = Color3.fromRGB(255, 255, 255),
+                }
 
-                local currentColor = initial
-                local h, sat, val = Color3.toHSV(currentColor)
+                local names = {
+                    "Red", "BlueSky", "Green", "Yellow", "Purple", "Orange", "White",
+                }
+
+                local currentName = tostring(colorConfig.Value or colorConfig.Default or "BlueSky")
+                if not palette[currentName] then
+                    currentName = "BlueSky"
+                end
+                local currentColor = palette[currentName]
 
                 local rootHeight = desc ~= "" and 50 or 34
                 local root = New("Frame", {
@@ -6871,181 +6883,62 @@ function DarkyUIGen2:CreateWindow(config)
                 Stroke(root, COLORS.Border, 1)
 
                 New("TextLabel", {
-                    Parent = root,
-                    BackgroundTransparency = 1,
-                    Position = UDim2.fromOffset(11, 5),
-                    Size = UDim2.new(1, -58, 0, 18),
-                    Text = title,
-                    TextColor3 = locked and COLORS.Muted or COLORS.Text,
-                    TextSize = 11,
-                    Font = Enum.Font.GothamMedium,
-                    TextXAlignment = Enum.TextXAlignment.Left,
-                    ZIndex = 18,
+                    Parent = root, BackgroundTransparency = 1,
+                    Position = UDim2.fromOffset(11, 5), Size = UDim2.new(1, -58, 0, 18),
+                    Text = title, TextColor3 = locked and COLORS.Muted or COLORS.Text,
+                    TextSize = 11, Font = Enum.Font.GothamMedium,
+                    TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 18,
                 })
 
                 if desc ~= "" then
                     New("TextLabel", {
-                        Parent = root,
-                        BackgroundTransparency = 1,
-                        Position = UDim2.fromOffset(11, 22),
-                        Size = UDim2.new(1, -58, 0, 15),
-                        Text = desc,
-                        TextColor3 = COLORS.SubText,
-                        TextSize = 9,
-                        Font = Enum.Font.Gotham,
-                        TextXAlignment = Enum.TextXAlignment.Left,
-                        TextTruncate = Enum.TextTruncate.AtEnd,
-                        ZIndex = 18,
+                        Parent = root, BackgroundTransparency = 1,
+                        Position = UDim2.fromOffset(11, 22), Size = UDim2.new(1, -58, 0, 15),
+                        Text = desc, TextColor3 = COLORS.SubText, TextSize = 9,
+                        Font = Enum.Font.Gotham, TextXAlignment = Enum.TextXAlignment.Left,
+                        TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = 18,
                     })
                 end
 
                 local colorButton = New("TextButton", {
-                    Parent = root,
-                    AnchorPoint = Vector2.new(1, 0.5),
-                    Position = UDim2.new(1, -9, 0.5, 0),
-                    Size = UDim2.fromOffset(34, 28),
-                    BackgroundColor3 = currentColor,
-                    BorderSizePixel = 0,
-                    AutoButtonColor = false,
-                    Active = not locked,
-                    Text = "",
-                    ZIndex = 19,
+                    Parent = root, AnchorPoint = Vector2.new(1, 0.5),
+                    Position = UDim2.new(1, -9, 0.5, 0), Size = UDim2.fromOffset(34, 28),
+                    BackgroundColor3 = COLORS.Panel2, BorderSizePixel = 0, AutoButtonColor = false,
+                    Active = not locked, Text = "", ZIndex = 19,
                 })
                 AddCorner(colorButton, 7)
                 Stroke(colorButton, COLORS.Border, 1)
 
-                local clickIcon = Icon(
-                    colorButton,
-                    colorConfig.Icon or "mouse-pointer-click",
-                    15,
-                    UDim2.new(0.5, -7.5, 0.5, -7.5),
-                    20,
-                    false
-                )
-                if clickIcon then
-                    clickIcon.ImageColor3 = COLORS.White
-                end
+                local clickIcon = Icon(colorButton, colorConfig.Icon or "mouse-pointer-click", 15,
+                    UDim2.new(0.5, -7.5, 0.5, -7.5), 20, false)
+                if clickIcon then clickIcon.ImageColor3 = CurrentTheme().Accent end
 
                 local popup = New("Frame", {
-                    Parent = root,
-                    Position = UDim2.new(1, -248, 1, 7),
-                    Size = UDim2.fromOffset(239, 210),
-                    BackgroundColor3 = COLORS.Panel,
-                    BorderSizePixel = 0,
-                    Visible = false,
-                    ZIndex = 100,
+                    Parent = holder, AnchorPoint = Vector2.new(1, 0),
+                    Position = UDim2.new(1, -6, 0, root.AbsolutePosition.Y - holder.AbsolutePosition.Y + rootHeight + 6),
+                    Size = UDim2.fromOffset(190, 265), BackgroundColor3 = COLORS.Panel,
+                    BorderSizePixel = 0, Visible = false, ZIndex = 200, ClipsDescendants = true,
                 })
                 AddCorner(popup, 8)
                 Stroke(popup, COLORS.Border, 1)
 
-                local square = New("Frame", {
-                    Parent = popup,
-                    Position = UDim2.fromOffset(10, 10),
-                    Size = UDim2.fromOffset(181, 154),
-                    BackgroundColor3 = Color3.fromHSV(h, 1, 1),
-                    BorderSizePixel = 0,
-                    ClipsDescendants = true,
-                    ZIndex = 101,
+                New("TextLabel", {
+                    Parent = popup, BackgroundTransparency = 1, Position = UDim2.fromOffset(12, 9),
+                    Size = UDim2.new(1, -24, 0, 17), Text = title, TextColor3 = COLORS.Text,
+                    TextSize = 11, Font = Enum.Font.GothamMedium,
+                    TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 202,
                 })
-                AddCorner(square, 6)
 
-                local whiteGradient = New("Frame", {
-                    Parent = square,
-                    Size = UDim2.fromScale(1, 1),
-                    BackgroundColor3 = Color3.new(1, 1, 1),
-                    BorderSizePixel = 0,
-                    ZIndex = 102,
+                local list = New("Frame", {
+                    Parent = popup, BackgroundTransparency = 1, Position = UDim2.fromOffset(8, 31),
+                    Size = UDim2.new(1, -16, 1, -39), ZIndex = 201,
                 })
-                AddCorner(whiteGradient, 6)
-                local whiteGrad = Instance.new("UIGradient")
-                whiteGrad.Color = ColorSequence.new(Color3.new(1,1,1), Color3.new(1,1,1))
-                whiteGrad.Transparency = NumberSequence.new({
-                    NumberSequenceKeypoint.new(0, 0),
-                    NumberSequenceKeypoint.new(1, 1),
-                })
-                whiteGrad.Rotation = 0
-                whiteGrad.Parent = whiteGradient
+                local layout = Instance.new("UIListLayout")
+                layout.Padding = UDim.new(0, 5)
+                layout.SortOrder = Enum.SortOrder.LayoutOrder
+                layout.Parent = list
 
-                local blackGradient = New("Frame", {
-                    Parent = square,
-                    Size = UDim2.fromScale(1, 1),
-                    BackgroundColor3 = Color3.new(0, 0, 0),
-                    BorderSizePixel = 0,
-                    ZIndex = 103,
-                })
-                AddCorner(blackGradient, 6)
-                local blackGrad = Instance.new("UIGradient")
-                blackGrad.Color = ColorSequence.new(Color3.new(0,0,0), Color3.new(0,0,0))
-                blackGrad.Transparency = NumberSequence.new({
-                    NumberSequenceKeypoint.new(0, 1),
-                    NumberSequenceKeypoint.new(1, 0),
-                })
-                blackGrad.Rotation = 90
-                blackGrad.Parent = blackGradient
-
-                local squareMarker = New("Frame", {
-                    Parent = square,
-                    Size = UDim2.fromOffset(12, 12),
-                    AnchorPoint = Vector2.new(0.5, 0.5),
-                    BackgroundColor3 = currentColor,
-                    BorderSizePixel = 0,
-                    ZIndex = 105,
-                })
-                AddCorner(squareMarker, 6)
-                Stroke(squareMarker, COLORS.White, 2)
-
-                local hueBar = New("Frame", {
-                    Parent = popup,
-                    Position = UDim2.fromOffset(200, 10),
-                    Size = UDim2.fromOffset(28, 154),
-                    BackgroundColor3 = Color3.fromRGB(255,255,255),
-                    BorderSizePixel = 0,
-                    ZIndex = 101,
-                })
-                AddCorner(hueBar, 6)
-                local hueGradient = Instance.new("UIGradient")
-                hueGradient.Color = ColorSequence.new({
-                    ColorSequenceKeypoint.new(0, Color3.fromRGB(255,0,0)),
-                    ColorSequenceKeypoint.new(1/6, Color3.fromRGB(255,255,0)),
-                    ColorSequenceKeypoint.new(2/6, Color3.fromRGB(0,255,0)),
-                    ColorSequenceKeypoint.new(3/6, Color3.fromRGB(0,255,255)),
-                    ColorSequenceKeypoint.new(4/6, Color3.fromRGB(0,0,255)),
-                    ColorSequenceKeypoint.new(5/6, Color3.fromRGB(255,0,255)),
-                    ColorSequenceKeypoint.new(1, Color3.fromRGB(255,0,0)),
-                })
-                hueGradient.Rotation = 90
-                hueGradient.Parent = hueBar
-
-                local hueMarker = New("Frame", {
-                    Parent = hueBar,
-                    Size = UDim2.new(1, 4, 0, 6),
-                    AnchorPoint = Vector2.new(0.5, 0.5),
-                    Position = UDim2.new(0.5, 0, h, 0),
-                    BackgroundColor3 = COLORS.White,
-                    BorderSizePixel = 0,
-                    ZIndex = 105,
-                })
-                AddCorner(hueMarker, 3)
-                Stroke(hueMarker, COLORS.Black, 1)
-
-                local hexBox = New("TextBox", {
-                    Parent = popup,
-                    Position = UDim2.fromOffset(10, 174),
-                    Size = UDim2.fromOffset(218, 26),
-                    BackgroundColor3 = COLORS.Panel2,
-                    BorderSizePixel = 0,
-                    Text = string.format("#%02X%02X%02X", math.floor(currentColor.R * 255 + 0.5), math.floor(currentColor.G * 255 + 0.5), math.floor(currentColor.B * 255 + 0.5)),
-                    PlaceholderText = "#07817",
-                    PlaceholderColor3 = COLORS.Muted,
-                    TextColor3 = COLORS.Text,
-                    TextSize = 10,
-                    Font = Enum.Font.Gotham,
-                    ClearTextOnFocus = false,
-                    TextXAlignment = Enum.TextXAlignment.Center,
-                    ZIndex = 105,
-                })
-                AddCorner(hexBox, 6)
-                Stroke(hexBox, COLORS.Border, 1)
+                local buttons = {}
 
                 local function fireCallback()
                     if typeof(colorConfig.Callback) == "function" then
@@ -7053,152 +6946,130 @@ function DarkyUIGen2:CreateWindow(config)
                     end
                 end
 
-                local function updateVisuals()
-                    local hueColor = Color3.fromHSV(h, 1, 1)
-                    square.BackgroundColor3 = hueColor
-                    squareMarker.BackgroundColor3 = currentColor
-                    squareMarker.Position = UDim2.new(sat, 0, 1 - val, 0)
-                    hueMarker.Position = UDim2.new(0.5, 0, h, 0)
-                    colorButton.BackgroundColor3 = currentColor
-                    hexBox.Text = string.format("#%02X%02X%02X", math.floor(currentColor.R * 255 + 0.5), math.floor(currentColor.G * 255 + 0.5), math.floor(currentColor.B * 255 + 0.5))
-                end
-
-                local function setColor(color, callCallback)
-                    if typeof(color) ~= "Color3" then
-                        return
-                    end
-                    currentColor = color
-                    h, sat, val = Color3.toHSV(color)
-                    updateVisuals()
-                    if callCallback ~= false then
-                        fireCallback()
+                local function refreshButtonStates()
+                    for name, button in pairs(buttons) do
+                        local selected = name == currentName
+                        button.BackgroundColor3 = selected and COLORS.Hover or COLORS.Panel2
+                        local check = button:FindFirstChild("SelectedCheck")
+                        if check then check.Visible = selected end
                     end
                 end
 
-                local function setFromSquare(input)
-                    if locked then return end
-                    local pos = input.Position
-                    local x = math.clamp((pos.X - square.AbsolutePosition.X) / math.max(square.AbsoluteSize.X, 1), 0, 1)
-                    local y = math.clamp((pos.Y - square.AbsolutePosition.Y) / math.max(square.AbsoluteSize.Y, 1), 0, 1)
-                    sat = x
-                    val = 1 - y
-                    currentColor = Color3.fromHSV(h, sat, val)
-                    updateVisuals()
-                    fireCallback()
+                local function setColorName(name, callCallback)
+                    if locked or not palette[name] then return end
+                    currentName = name
+                    currentColor = palette[name]
+                    refreshButtonStates()
+                    if callCallback ~= false then fireCallback() end
                 end
 
-                local function setFromHue(input)
-                    if locked then return end
-                    local pos = input.Position
-                    h = math.clamp((pos.Y - hueBar.AbsolutePosition.Y) / math.max(hueBar.AbsoluteSize.Y, 1), 0, 1)
-                    currentColor = Color3.fromHSV(h, sat, val)
-                    updateVisuals()
-                    fireCallback()
-                end
+                for index, name in ipairs(names) do
+                    local item = New("TextButton", {
+                        Parent = list, Size = UDim2.new(1, 0, 0, 28),
+                        BackgroundColor3 = COLORS.Panel2, BorderSizePixel = 0, AutoButtonColor = false,
+                        Text = "", LayoutOrder = index, Active = not locked, ZIndex = 202,
+                    })
+                    AddCorner(item, 6)
+                    Stroke(item, COLORS.Border, 1)
 
-                local squareDragging = false
-                local hueDragging = false
+                    local swatch = New("Frame", {
+                        Parent = item, Position = UDim2.fromOffset(7, 6), Size = UDim2.fromOffset(16, 16),
+                        BackgroundColor3 = palette[name], BorderSizePixel = 0, ZIndex = 203,
+                    })
+                    AddCorner(swatch, 4)
+                    Stroke(swatch, COLORS.Border, 1)
 
-                square.InputBegan:Connect(function(input)
-                    if locked then return end
-                    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                        squareDragging = true
-                        setFromSquare(input)
-                    end
-                end)
-                hueBar.InputBegan:Connect(function(input)
-                    if locked then return end
-                    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                        hueDragging = true
-                        setFromHue(input)
-                    end
-                end)
-                UserInputService.InputChanged:Connect(function(input)
-                    if squareDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-                        setFromSquare(input)
-                    elseif hueDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-                        setFromHue(input)
-                    end
-                end)
-                UserInputService.InputEnded:Connect(function(input)
-                    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                        squareDragging = false
-                        hueDragging = false
-                    end
-                end)
+                    New("TextLabel", {
+                        Parent = item, BackgroundTransparency = 1, Position = UDim2.fromOffset(31, 0),
+                        Size = UDim2.new(1, -60, 1, 0), Text = name, TextColor3 = COLORS.Text,
+                        TextSize = 10, Font = Enum.Font.Gotham,
+                        TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 203,
+                    })
 
-                local function parseHex(text)
-                    local cleaned = tostring(text or "")
-                        :gsub("#", "")
-                        :gsub("%s+", "")
+                    New("TextLabel", {
+                        Name = "SelectedCheck", Parent = item, BackgroundTransparency = 1,
+                        AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -8, 0.5, 0),
+                        Size = UDim2.fromOffset(16, 16), Text = "✓",
+                        TextColor3 = CurrentTheme().Accent, TextSize = 13, Font = Enum.Font.GothamBold,
+                        Visible = false, ZIndex = 204,
+                    })
 
-                    if #cleaned == 3 then
-                        cleaned = cleaned:sub(1,1)..cleaned:sub(1,1)
-                            ..cleaned:sub(2,2)..cleaned:sub(2,2)
-                            ..cleaned:sub(3,3)..cleaned:sub(3,3)
-                    end
-
-                    if not cleaned:match("^%x%x%x%x%x%x$") then
-                        return nil
-                    end
-
-                    local ok, color = pcall(function()
-                        return Color3.fromHex("#" .. cleaned)
+                    item.MouseButton1Click:Connect(function()
+                        if locked then return end
+                        setColorName(name, true)
+                        popup.Visible = false
                     end)
-                    return ok and color or nil
+                    buttons[name] = item
                 end
 
-                hexBox.FocusLost:Connect(function()
-                    if locked then return end
-                    local parsed = parseHex(hexBox.Text)
-                    if parsed then
-                        setColor(parsed, true)
-                    else
-                        updateVisuals()
-                    end
+                local function positionPopup()
+                    popup.Position = UDim2.new(1, -6, 0, root.AbsolutePosition.Y - holder.AbsolutePosition.Y + root.AbsoluteSize.Y + 6)
+                end
+
+                root:GetPropertyChangedSignal("AbsolutePosition"):Connect(function()
+                    if popup.Visible then positionPopup() end
                 end)
-
-                local function setOpen(value)
-                    popup.Visible = value == true and not locked
-                    if popup.Visible then
-                        popup.Size = UDim2.fromOffset(239, 0)
-                        Tween(popup, FAST, {Size = UDim2.fromOffset(239, 210)})
-                    end
-                end
+                root:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+                    if popup.Visible then positionPopup() end
+                end)
 
                 colorButton.MouseButton1Click:Connect(function()
                     if locked then return end
-                    ClickPop(colorButton)
-                    setOpen(not popup.Visible)
+                    popup.Visible = not popup.Visible
+                    if popup.Visible then
+                        positionPopup()
+                        refreshButtonStates()
+                    end
                 end)
 
-                local object = {
-                    Root = root,
-                    Button = colorButton,
-                    Popup = popup,
-                    Type = "Colorpicker",
-                }
+                local inputConnection = UserInputService.InputBegan:Connect(function(input)
+                    if not popup.Visible then return end
+                    if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then return end
+                    local pos = input.Position
+                    local p, ps = popup.AbsolutePosition, popup.AbsoluteSize
+                    local b, bs = colorButton.AbsolutePosition, colorButton.AbsoluteSize
+                    local insidePopup = pos.X >= p.X and pos.X <= p.X + ps.X and pos.Y >= p.Y and pos.Y <= p.Y + ps.Y
+                    local insideButton = pos.X >= b.X and pos.X <= b.X + bs.X and pos.Y >= b.Y and pos.Y <= b.Y + bs.Y
+                    if not insidePopup and not insideButton then popup.Visible = false end
+                end)
+
+                refreshButtonStates()
+
+                local object = { Root = root, Button = colorButton, Popup = popup, Type = "Colorpicker" }
 
                 function object:GetValue()
                     return currentColor
                 end
 
+                function object:GetName()
+                    return currentName
+                end
+
                 function object:SetValue(value, callCallback)
                     if locked then return end
-                    setColor(value, callCallback ~= false)
+                    local name = tostring(value or "")
+                    if palette[name] then
+                        setColorName(name, callCallback ~= false)
+                    elseif typeof(value) == "Color3" then
+                        local closestName, closestDistance
+                        for candidate, color in pairs(palette) do
+                            local d = (color.R - value.R)^2 + (color.G - value.G)^2 + (color.B - value.B)^2
+                            if not closestDistance or d < closestDistance then
+                                closestName, closestDistance = candidate, d
+                            end
+                        end
+                        setColorName(closestName or "BlueSky", callCallback ~= false)
+                    end
                 end
 
                 function object:SetLocked(value)
                     locked = value == true
                     colorButton.Active = not locked
-                    if locked then
-                        popup.Visible = false
-                    end
+                    if locked then popup.Visible = false end
                 end
 
                 RegisterFlag(colorConfig.Flag, object)
                 Register(root, title, desc)
-                setColor(currentColor, false)
 
                 return object
             end
