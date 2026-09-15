@@ -84,8 +84,8 @@ local LocalPlayer = Players.LocalPlayer
 -- CONSTANTS
 --========================================================
 
-local WINDOW_WIDTH = 580
-local WINDOW_HEIGHT = 460
+local WINDOW_WIDTH = 550
+local WINDOW_HEIGHT = 350
 
 local MAIN_GUI_NAME = "DarkyUIGen2_Main"
 local KEY_GUI_NAME = "DarkyUIGen2_KeySystem"
