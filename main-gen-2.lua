@@ -15,7 +15,7 @@
 --   • Automatic page scrolling only when content overflows
 --   • Button / Toggle / Slider / Input / Dropdown
 --   • Centered searchable dropdown popup
---   • Themes: Red / BlueSky / White / Yellow / Green / Purple / Orange
+--   • Themes: Red / BlueSky / White / Yellow / Green / Purple / Orange / Gray
 --   • Theme affects toggle + slider + KeySystem accent only
 --   • Notification automatically uses Window.Image
 --   • KeySystem can be created BEFORE CreateWindow
@@ -101,6 +101,11 @@ local THEMES = {
         Accent = Color3.fromRGB(220, 100, 30),
         Accent2 = Color3.fromRGB(245, 135, 55),
     },
+
+    Gray = {
+        Accent = Color3.fromRGB(120, 125, 135),
+        Accent2 = Color3.fromRGB(175, 180, 190),
+    },
 }
 
 local COLOR_PRESETS = {
@@ -120,10 +125,34 @@ local function ResolvePresetColor(name)
     if typeof(name) == "Color3" then
         return name
     end
-    if type(name) == "string" and COLOR_PRESETS[name] then
-        return COLOR_PRESETS[name]
+    if type(name) == "string" then
+        local key = name
+        if COLOR_PRESETS[key] then
+            return COLOR_PRESETS[key]
+        end
+        for presetName, presetColor in pairs(COLOR_PRESETS) do
+            if presetName:lower() == key:lower() then
+                return presetColor
+            end
+        end
     end
     return COLORS.White
+end
+
+local function SafeColor3(value, fallback)
+    if typeof(value) == "Color3" then
+        return value
+    end
+    if type(value) == "string" then
+        local hex = value:gsub("#", "")
+        if #hex == 6 then
+            local ok, color = pcall(Color3.fromHex, "#" .. hex)
+            if ok and typeof(color) == "Color3" then
+                return color
+            end
+        end
+    end
+    return fallback or COLORS.White
 end
 
 DarkyUIGen2.Themes = THEMES
@@ -2642,9 +2671,7 @@ function DarkyUIGen2:CreateWindow(config)
         tagConfig = tagConfig or {}
 
         local tagTitle = tostring(tagConfig.Title or "Tag")
-        local tagColor = typeof(tagConfig.Color) == "Color3"
-            and tagConfig.Color
-            or CurrentTheme().Accent
+        local tagColor = SafeColor3(tagConfig.Color, CurrentTheme().Accent)
 
         for _, child in ipairs(tagHolder:GetChildren()) do
             child:Destroy()
@@ -6720,7 +6747,7 @@ function DarkyUIGen2:CreateWindow(config)
                 local desc = colorConfig.Desc or ""
                 local advancedPicker = colorConfig.Default ~= nil or colorConfig.Flag ~= nil or typeof(colorConfig.Callback) == "function"
                 local locked = colorConfig.Locked == true
-                local color = advancedPicker and (typeof(colorConfig.Default) == "Color3" and colorConfig.Default or COLORS.White) or ResolvePresetColor((colorConfig.ColorList or {"White"})[1])
+                local color = advancedPicker and SafeColor3(colorConfig.Default, COLORS.White) or ResolvePresetColor((colorConfig.ColorList or {"White"})[1])
 
                 local root = New("Frame", { Parent=holder, Size=UDim2.new(1,0,0,desc~="" and 62 or 48), BackgroundColor3=COLORS.Panel, BorderSizePixel=0, ZIndex=15 })
                 Stroke(root,COLORS.Border,1)
