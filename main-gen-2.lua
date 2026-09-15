@@ -1,5 +1,5 @@
 --========================================================
--- DarkyUI v1.4.58 (Rework Mode)
+-- DarkyUI v1.5 (Rework Mode)
 -- Clean single-file Roblox UI library
 --========================================================
 -- Features:
@@ -20,7 +20,7 @@
 --   • Theme accents update supported themed elements + KeySystem
 --   • HiderSearchBar = false shows SearchBar; true hides it
 --   • Notification automatically uses Window.Image
---   • Rework ProgressBar startup / user verification / loading flow
+--   • Rework ProgressBar startup / user verification / animated loading icon
 --   • KeySystem can be created BEFORE or AFTER CreateWindow
 --   • Optional saved key
 --========================================================
@@ -64,8 +64,6 @@ local DarkyUIGen2 = {}
 --   Input    = Type "Default" or "Textarea"; Placeholder supported.
 --
 -- Desc is displayed under the element title when supplied.
--- Rich dropdown values support:
---   {Title, Desc, Icon, Value, Callback}
 --========================================================
 
 --========================================================
@@ -84,8 +82,8 @@ local LocalPlayer = Players.LocalPlayer
 -- CONSTANTS
 --========================================================
 
-local WINDOW_WIDTH = 550
-local WINDOW_HEIGHT = 350
+local WINDOW_WIDTH = 580
+local WINDOW_HEIGHT = 460
 
 local MAIN_GUI_NAME = "DarkyUIGen2_Main"
 local KEY_GUI_NAME = "DarkyUIGen2_KeySystem"
@@ -2432,33 +2430,36 @@ function DarkyUIGen2:CreateProgressBar(config)
         ZIndex = 5001,
     })
 
-    -- Intentionally square: Rework Mode startup panel.
+    -- Rounded Rework Mode startup panel.
+    AddCorner(main, 14)
     Stroke(main, CurrentTheme().Accent, 1)
 
     local titleLabel = New("TextLabel", {
         Parent = main,
         BackgroundTransparency = 1,
-        Position = UDim2.fromOffset(26, 24),
-        Size = UDim2.new(1, -52, 0, 28),
+        AnchorPoint = Vector2.new(0.5, 0),
+        Position = UDim2.new(0.5, 0, 0, 24),
+        Size = UDim2.new(1, -52, 0, 30),
         Text = title,
         TextColor3 = COLORS.Text,
         TextSize = 20,
         Font = Enum.Font.GothamBold,
-        TextXAlignment = Enum.TextXAlignment.Left,
+        TextXAlignment = Enum.TextXAlignment.Center,
         ZIndex = 5002,
     })
 
     local descLabel = New("TextLabel", {
         Parent = main,
         BackgroundTransparency = 1,
-        Position = UDim2.fromOffset(26, 54),
-        Size = UDim2.new(1, -52, 0, 42),
+        AnchorPoint = Vector2.new(0.5, 0),
+        Position = UDim2.new(0.5, 0, 0, 55),
+        Size = UDim2.new(1, -70, 0, 38),
         Text = desc,
         TextColor3 = COLORS.SubText,
         TextSize = 12,
         Font = Enum.Font.Gotham,
         TextWrapped = true,
-        TextXAlignment = Enum.TextXAlignment.Left,
+        TextXAlignment = Enum.TextXAlignment.Center,
         TextYAlignment = Enum.TextYAlignment.Top,
         ZIndex = 5002,
     })
@@ -2488,19 +2489,27 @@ function DarkyUIGen2:CreateProgressBar(config)
         ZIndex = 5003,
     })
 
-    local spinner = New("TextLabel", {
-        Parent = main,
-        BackgroundTransparency = 1,
-        Position = UDim2.new(0.5, -18, 0, 142),
-        Size = UDim2.fromOffset(36, 36),
-        Text = "↻",
-        TextColor3 = CurrentTheme().Accent,
-        TextSize = 28,
-        Font = Enum.Font.GothamBold,
-        TextXAlignment = Enum.TextXAlignment.Center,
-        TextYAlignment = Enum.TextYAlignment.Center,
-        ZIndex = 5002,
-    })
+    local spinner = Icon(
+        main,
+        config.LoadingIcon or "loader-circle",
+        34,
+        UDim2.new(0.5, -17, 0, 142),
+        5002,
+        true
+    )
+
+    if not spinner then
+        spinner = New("ImageLabel", {
+            Parent = main,
+            BackgroundTransparency = 1,
+            Position = UDim2.new(0.5, -17, 0, 142),
+            Size = UDim2.fromOffset(34, 34),
+            Image = "rbxassetid://10734953451",
+            ImageColor3 = CurrentTheme().Accent,
+            ScaleType = Enum.ScaleType.Fit,
+            ZIndex = 5002,
+        })
+    end
 
     local status = New("TextLabel", {
         Parent = main,
@@ -2558,8 +2567,11 @@ function DarkyUIGen2:CreateProgressBar(config)
         DarkyUIGen2._ProgressComplete = true
 
         fill.Size = UDim2.new(1, -2, 1, -2)
-        spinner.Text = "✓"
-        spinner.TextColor3 = Color3.fromRGB(70, 220, 125)
+        local checkAsset = ResolveIcon("check")
+        if checkAsset and spinner:IsA("ImageLabel") then
+            spinner.Image = checkAsset
+        end
+        spinner.ImageColor3 = Color3.fromRGB(70, 220, 125)
         spinner.Rotation = 0
         status.Text = authorized and "Loading complete" or "Access denied"
         status.TextColor3 = authorized
@@ -2625,8 +2637,8 @@ function DarkyUIGen2:CreateProgressBar(config)
         if fill and fill.Parent then
             fill.BackgroundColor3 = colors.Accent
         end
-        if spinner and spinner.Parent and not object.Completed then
-            spinner.TextColor3 = colors.Accent
+        if spinner and spinner.Parent and not object.Completed and spinner:IsA("ImageLabel") then
+            spinner.ImageColor3 = colors.Accent
         end
     end)
 
@@ -5628,7 +5640,7 @@ function DarkyUIGen2:CreateWindow(config)
                 BackgroundColor3 = Section.Box and COLORS.Background2 or COLORS.Background2,
                 BackgroundTransparency = Section.Box and 0 or 1,
                 BorderSizePixel = 0,
-                ClipsDescendants = true,
+                ClipsDescendants = false,
                 LayoutOrder = targetPage._NextOrder,
                 ZIndex = 13,
             })
