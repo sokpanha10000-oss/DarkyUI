@@ -1,5 +1,5 @@
 --========================================================
--- DarkyUIGen2
+-- DarkyUI v1.4.56 (Rework Mode)
 -- Clean single-file Roblox UI library
 --========================================================
 -- Features:
@@ -20,7 +20,8 @@
 --   • Theme accents update supported themed elements + KeySystem
 --   • HiderSearchBar = false shows SearchBar; true hides it
 --   • Notification automatically uses Window.Image
---   • KeySystem can be created BEFORE CreateWindow
+--   • Rework ProgressBar startup / user verification / loading flow
+--   • KeySystem can be created BEFORE or AFTER CreateWindow
 --   • Optional saved key
 --========================================================
 
@@ -58,6 +59,7 @@ local DarkyUIGen2 = {}
 --   Dropdown = normal values or rich values; Multi supported.
 --   Toggle   = Type "Toggle" or "Checkbox".
 --   Slider   = Value {Min, Max, Default}; Step supported.
+--   ProgressBar = startup progress {Min, Max, Default} + optional UserList verification.
 --   Input    = Type "Default" or "Textarea"; Placeholder supported.
 --
 -- Desc is displayed under the element title when supplied.
@@ -149,6 +151,8 @@ DarkyUIGen2.CurrentImage = nil
 DarkyUIGen2._Window = nil
 DarkyUIGen2._KeySystem = nil
 DarkyUIGen2._KeyPassed = false
+DarkyUIGen2._ProgressBar = nil
+DarkyUIGen2._ProgressComplete = false
 DarkyUIGen2._ThemeObjects = {}
 
 --========================================================
@@ -2304,6 +2308,367 @@ function DarkyUIGen2:CreateAura(target, config)
     return aura
 end
 
+--========================================================
+-- REWORK PROGRESS BAR
+--========================================================
+
+function DarkyUIGen2:_RevealAfterStartup()
+    local Window = DarkyUIGen2._Window
+    if not Window or Window.Destroyed then
+        return
+    end
+
+    Window._ProgressLocked = false
+
+    local keySystem = DarkyUIGen2._KeySystem
+    if keySystem and not keySystem.Destroyed and not DarkyUIGen2._KeyPassed then
+        Window._KeyLocked = true
+        if Window.Main and Window.Main.Parent then
+            Window.Main.Visible = false
+        end
+        return
+    end
+
+    if Window.Main and Window.Main.Parent then
+        Window._KeyLocked = false
+        Window.Main.Visible = true
+        Window.Main.Size = UDim2.fromOffset(550, 0)
+        Tween(Window.Main, MED, {
+            Size = UDim2.fromOffset(WINDOW_WIDTH, WINDOW_HEIGHT)
+        })
+    end
+end
+
+function DarkyUIGen2:CreateProgressBar(config)
+    config = config or {}
+
+    if DarkyUIGen2._ProgressBar
+        and not DarkyUIGen2._ProgressBar.Destroyed then
+        pcall(function()
+            DarkyUIGen2._ProgressBar:Destroy()
+        end)
+    end
+
+    DarkyUIGen2._ProgressComplete = false
+
+    local values = config.Value or {}
+    local minimum = tonumber(values.Min) or 0
+    local maximum = tonumber(values.Max) or 100
+    local default = tonumber(values.Default)
+
+    if maximum < minimum then
+        minimum, maximum = maximum, minimum
+    end
+
+    default = default or minimum
+    default = math.clamp(default, minimum, maximum)
+
+    local duration = math.clamp(
+        tonumber(config.Duration) or 2.5,
+        0.5,
+        60
+    )
+
+    local title = tostring(config.Title or "Loading DarkyUI")
+    local desc = tostring(config.Desc or "Preparing your interface...")
+
+    local userList = config.UserList
+    local shouldVerify = typeof(userList) == "table" and next(userList) ~= nil
+    local authorized = true
+
+    if shouldVerify then
+        local currentUserId = tostring(LocalPlayer and LocalPlayer.UserId or "")
+        authorized = false
+
+        for _, allowedUserId in pairs(userList) do
+            if tostring(allowedUserId) == currentUserId then
+                authorized = true
+                break
+            end
+        end
+    end
+
+    -- If a window already exists, hide it until this startup flow finishes.
+    if DarkyUIGen2._Window
+        and not DarkyUIGen2._Window.Destroyed then
+        DarkyUIGen2._Window._ProgressLocked = true
+        if DarkyUIGen2._Window.Main then
+            DarkyUIGen2._Window.Main.Visible = false
+        end
+    end
+
+    local oldGui = CoreGui:FindFirstChild("DarkyUIGen2_ProgressBar")
+    if oldGui then
+        oldGui:Destroy()
+    end
+
+    local gui = New("ScreenGui", {
+        Name = "DarkyUIGen2_ProgressBar",
+        Parent = CoreGui,
+        IgnoreGuiInset = true,
+        ResetOnSpawn = false,
+        ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+        DisplayOrder = 5000000,
+    })
+
+    local overlay = New("Frame", {
+        Parent = gui,
+        Size = UDim2.fromScale(1, 1),
+        BackgroundColor3 = COLORS.Black,
+        BackgroundTransparency = 0.2,
+        BorderSizePixel = 0,
+        ZIndex = 5000,
+    })
+
+    local main = New("Frame", {
+        Parent = overlay,
+        Name = "Main",
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.fromScale(0.5, 0.5),
+        Size = UDim2.fromOffset(520, 230),
+        BackgroundColor3 = COLORS.Background,
+        BorderSizePixel = 0,
+        ZIndex = 5001,
+    })
+
+    -- Intentionally square: Rework Mode startup panel.
+    Stroke(main, CurrentTheme().Accent, 1)
+
+    local titleLabel = New("TextLabel", {
+        Parent = main,
+        BackgroundTransparency = 1,
+        Position = UDim2.fromOffset(26, 24),
+        Size = UDim2.new(1, -52, 0, 28),
+        Text = title,
+        TextColor3 = COLORS.Text,
+        TextSize = 20,
+        Font = Enum.Font.GothamBold,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        ZIndex = 5002,
+    })
+
+    local descLabel = New("TextLabel", {
+        Parent = main,
+        BackgroundTransparency = 1,
+        Position = UDim2.fromOffset(26, 54),
+        Size = UDim2.new(1, -52, 0, 42),
+        Text = desc,
+        TextColor3 = COLORS.SubText,
+        TextSize = 12,
+        Font = Enum.Font.Gotham,
+        TextWrapped = true,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextYAlignment = Enum.TextYAlignment.Top,
+        ZIndex = 5002,
+    })
+
+    local track = New("Frame", {
+        Parent = main,
+        Position = UDim2.fromOffset(26, 112),
+        Size = UDim2.new(1, -52, 0, 12),
+        BackgroundColor3 = COLORS.Panel2,
+        BorderSizePixel = 0,
+        ZIndex = 5002,
+    })
+
+    Stroke(track, COLORS.Border, 1)
+
+    local fill = New("Frame", {
+        Parent = track,
+        Position = UDim2.fromOffset(1, 1),
+        Size = UDim2.new(
+            (maximum == minimum) and 0 or ((default - minimum) / (maximum - minimum)),
+            -2,
+            1,
+            -2
+        ),
+        BackgroundColor3 = CurrentTheme().Accent,
+        BorderSizePixel = 0,
+        ZIndex = 5003,
+    })
+
+    local spinner = New("TextLabel", {
+        Parent = main,
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0.5, -18, 0, 142),
+        Size = UDim2.fromOffset(36, 36),
+        Text = "↻",
+        TextColor3 = CurrentTheme().Accent,
+        TextSize = 28,
+        Font = Enum.Font.GothamBold,
+        TextXAlignment = Enum.TextXAlignment.Center,
+        TextYAlignment = Enum.TextYAlignment.Center,
+        ZIndex = 5002,
+    })
+
+    local status = New("TextLabel", {
+        Parent = main,
+        BackgroundTransparency = 1,
+        Position = UDim2.fromOffset(26, 184),
+        Size = UDim2.new(1, -52, 0, 24),
+        Text = "Loading...",
+        TextColor3 = COLORS.SubText,
+        TextSize = 11,
+        Font = Enum.Font.Gotham,
+        TextXAlignment = Enum.TextXAlignment.Center,
+        ZIndex = 5002,
+    })
+
+    local destroyed = false
+    local object = {
+        Gui = gui,
+        Main = main,
+        Bar = fill,
+        Destroyed = false,
+        Completed = false,
+        Authorized = authorized,
+    }
+
+    function object:SetValue(value, complete)
+        if destroyed then
+            return
+        end
+
+        local numeric = math.clamp(
+            tonumber(value) or minimum,
+            minimum,
+            maximum
+        )
+
+        local ratio = maximum == minimum
+            and 1
+            or ((numeric - minimum) / (maximum - minimum))
+
+        Tween(fill, FAST, {
+            Size = UDim2.new(ratio, -2, 1, -2)
+        })
+
+        if complete or numeric >= maximum then
+            self:Complete()
+        end
+    end
+
+    function object:Complete()
+        if destroyed or self.Completed then
+            return
+        end
+
+        self.Completed = true
+        DarkyUIGen2._ProgressComplete = true
+
+        fill.Size = UDim2.new(1, -2, 1, -2)
+        spinner.Text = "✓"
+        spinner.TextColor3 = Color3.fromRGB(70, 220, 125)
+        spinner.Rotation = 0
+        status.Text = authorized and "Loading complete" or "Access denied"
+        status.TextColor3 = authorized
+            and Color3.fromRGB(70, 220, 125)
+            or COLORS.Danger
+
+        task.delay(0.55, function()
+            if destroyed then
+                return
+            end
+
+            if not authorized then
+                destroyed = true
+                self.Destroyed = true
+                if DarkyUIGen2._ProgressBar == self then
+                    DarkyUIGen2._ProgressBar = nil
+                end
+                if gui then
+                    gui:Destroy()
+                end
+
+                if LocalPlayer then
+                    pcall(function()
+                        LocalPlayer:Kick("DarkyUI: You are not authorized to use this library.")
+                    end)
+                end
+                return
+            end
+
+            destroyed = true
+            self.Destroyed = true
+            if DarkyUIGen2._ProgressBar == self then
+                DarkyUIGen2._ProgressBar = nil
+            end
+            if gui then
+                gui:Destroy()
+            end
+
+            DarkyUIGen2:_RevealAfterStartup()
+        end)
+    end
+
+    function object:Destroy()
+        if destroyed then
+            return
+        end
+
+        destroyed = true
+        self.Destroyed = true
+
+        if DarkyUIGen2._ProgressBar == self then
+            DarkyUIGen2._ProgressBar = nil
+        end
+
+        if gui then
+            gui:Destroy()
+        end
+    end
+
+    DarkyUIGen2._ProgressBar = object
+
+    RegisterTheme(function(_, colors)
+        if fill and fill.Parent then
+            fill.BackgroundColor3 = colors.Accent
+        end
+        if spinner and spinner.Parent and not object.Completed then
+            spinner.TextColor3 = colors.Accent
+        end
+    end)
+
+    task.spawn(function()
+        while not destroyed and spinner.Parent and not object.Completed do
+            spinner.Rotation = 0
+            local rotationTween = Tween(
+                spinner,
+                TweenInfo.new(0.8, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut),
+                { Rotation = 360 }
+            )
+            if rotationTween then
+                rotationTween.Completed:Wait()
+            else
+                break
+            end
+        end
+    end)
+
+    task.spawn(function()
+        local percentage = maximum == minimum and 1 or ((default - minimum) / (maximum - minimum))
+        fill.Size = UDim2.new(percentage, -2, 1, -2)
+
+        local progressTween = Tween(
+            fill,
+            TweenInfo.new(
+                duration,
+                Enum.EasingStyle.Quad,
+                Enum.EasingDirection.Out
+            ),
+            { Size = UDim2.new(1, -2, 1, -2) }
+        )
+
+        if progressTween then
+            progressTween.Completed:Wait()
+        end
+
+        object:Complete()
+    end)
+
+    return object
+end
+
 function DarkyUIGen2:CreateKeySystem(config)
     if self._KeySystem
         and not self._KeySystem.Destroyed then
@@ -2312,9 +2677,23 @@ function DarkyUIGen2:CreateKeySystem(config)
 
     self._KeyPassed = false
 
+    local Window = self._Window
+    if Window and not Window.Destroyed and Window.Main then
+        Window._KeyLocked = true
+        Window.Main.Visible = false
+    end
+
     local keySystem = MakeKeySystem(config)
 
     self._KeySystem = keySystem
+
+    -- Rework Mode keeps startup order flexible. If the ProgressBar has
+    -- already completed, the key system now becomes the next screen.
+    if self._ProgressComplete and Window and not Window.Destroyed then
+        Window._ProgressLocked = false
+        Window._KeyLocked = true
+        Window.Main.Visible = false
+    end
 
     return keySystem
 end
@@ -2443,6 +2822,11 @@ function DarkyUIGen2:CreateWindow(config)
         and not DarkyUIGen2._KeySystem.Destroyed
         and not DarkyUIGen2._KeyPassed
 
+    Window._ProgressLocked =
+        DarkyUIGen2._ProgressBar ~= nil
+        and not DarkyUIGen2._ProgressBar.Destroyed
+        and not DarkyUIGen2._ProgressComplete
+
     --====================================================
     -- GUI
     --====================================================
@@ -2544,7 +2928,7 @@ function DarkyUIGen2:CreateWindow(config)
             BackgroundTransparency = Window.Transparent and 0.38 or 0.12,
             BorderSizePixel = 0,
             ClipsDescendants = true,
-            Visible = not Window._KeyLocked,
+            Visible = not Window._KeyLocked and not Window._ProgressLocked,
             ZIndex = 10,
         }
     )
@@ -2891,6 +3275,8 @@ function DarkyUIGen2:CreateWindow(config)
                 ZIndex = 25,
             }
         )
+
+        AddCorner(searchFrame, 9)
 
         Stroke(
             searchFrame,
@@ -4048,7 +4434,21 @@ function DarkyUIGen2:CreateWindow(config)
         )
 
         local tabIconColor = ResolveStyleColor(Tab.IconColor, COLORS.Text)
-        if Tab.IconThemed and tabIcon and tabIcon:IsA("ImageLabel") then
+        local explicitIconColor = Tab.IconColor ~= nil and tostring(Tab.IconColor) ~= ""
+        local iconColorThemeName
+
+        if explicitIconColor and type(Tab.IconColor) == "string" then
+            local requested = tostring(Tab.IconColor):lower()
+            for themeName, themeData in pairs(THEMES) do
+                if themeName:lower() == requested then
+                    iconColorThemeName = themeName
+                    tabIconColor = themeData.Accent
+                    break
+                end
+            end
+        end
+
+        if Tab.IconThemed and not explicitIconColor and tabIcon and tabIcon:IsA("ImageLabel") then
             tabIcon.ImageColor3 = CurrentTheme().Accent
             RegisterTheme(function(_, colors)
                 if tabIcon and tabIcon.Parent then
@@ -4057,6 +4457,22 @@ function DarkyUIGen2:CreateWindow(config)
             end)
         elseif tabIcon and tabIcon:IsA("ImageLabel") then
             tabIcon.ImageColor3 = tabIconColor
+
+            if iconColorThemeName then
+                RegisterTheme(function(themeName, colors)
+                    if tabIcon and tabIcon.Parent then
+                        -- An explicit theme-name IconColor follows the selected
+                        -- theme when that exact theme is active; otherwise it
+                        -- remains the requested theme's accent color.
+                        if themeName == iconColorThemeName then
+                            tabIcon.ImageColor3 = colors.Accent
+                        else
+                            local requestedTheme = THEMES[iconColorThemeName]
+                            tabIcon.ImageColor3 = requestedTheme and requestedTheme.Accent or tabIconColor
+                        end
+                    end
+                end)
+            end
         end
 
         local tabText = New(
@@ -5407,13 +5823,35 @@ function DarkyUIGen2:CreateWindow(config)
                 local hasIcon = buttonConfig.Icon ~= nil and tostring(buttonConfig.Icon) ~= ""
                 local height = desc ~= "" and 58 or 42
 
-                local normalColor = ResolveStyleColor(
-                    buttonConfig.BackgroundColor ~= nil and buttonConfig.BackgroundColor or buttonConfig.Color,
-                    COLORS.Panel
-                )
+                local backgroundValue = buttonConfig.BackgroundColor ~= nil and buttonConfig.BackgroundColor or buttonConfig.Color
+                local normalColor = ResolveStyleColor(backgroundValue, COLORS.Panel)
+                local backgroundThemeName
+
+                if type(backgroundValue) == "string" then
+                    local requested = tostring(backgroundValue):lower()
+                    for themeName, themeData in pairs(THEMES) do
+                        if themeName:lower() == requested then
+                            backgroundThemeName = themeName
+                            normalColor = themeData.Accent
+                            break
+                        end
+                    end
+                end
+
+                local function DeriveHoverColor(color)
+                    if typeof(color) ~= "Color3" then
+                        return color
+                    end
+                    return Color3.new(
+                        math.clamp(color.R + 0.08, 0, 1),
+                        math.clamp(color.G + 0.08, 0, 1),
+                        math.clamp(color.B + 0.08, 0, 1)
+                    )
+                end
+
                 local hoverColor = ResolveStyleColor(
                     buttonConfig.HoverColor,
-                    CurrentTheme().Accent2
+                    DeriveHoverColor(normalColor)
                 )
                 local iconColor = ResolveStyleColor(
                     buttonConfig.IconColor,
@@ -5444,37 +5882,74 @@ function DarkyUIGen2:CreateWindow(config)
                 local titleLabel
                 local descLabel
 
-                local titleWidthPad = (iconAlign == "between" and hasIcon) and 52 or (hasIcon and 36 or 20)
-                titleLabel = New("TextLabel", {
-                    Parent = root,
-                    AnchorPoint = Vector2.new(0.5, 0),
-                    Position = UDim2.new(0.5, 0, 0, desc ~= "" and 8 or 10),
-                    Size = UDim2.new(1, -titleWidthPad, 0, 20),
-                    BackgroundTransparency = 1,
-                    Text = displayedTitle,
-                    TextColor3 = locked and COLORS.Muted or COLORS.Text,
-                    TextSize = 12,
-                    Font = Enum.Font.GothamBold,
-                    TextXAlignment = Enum.TextXAlignment.Center,
-                    TextTruncate = Enum.TextTruncate.AtEnd,
-                    ZIndex = 18,
-                })
+                local isBetween = iconAlign == "between" and hasIcon
+                local isLeft = iconAlign == "left" and hasIcon
+                local isRight = iconAlign == "right" and hasIcon
+                local textLeftOffset = (isLeft and 34) or 14
+                local textRightPadding = (isRight and 38) or 14
 
-                if desc ~= "" then
-                    descLabel = New("TextLabel", {
+                if isBetween then
+                    titleLabel = New("TextLabel", {
                         Parent = root,
                         AnchorPoint = Vector2.new(0.5, 0),
-                        Position = UDim2.new(0.5, 0, 0, 30),
-                        Size = UDim2.new(1, -20, 0, 16),
+                        Position = UDim2.new(0.5, 0, 0, desc ~= "" and 8 or 10),
+                        Size = UDim2.new(1, -52, 0, 20),
                         BackgroundTransparency = 1,
-                        Text = desc,
-                        TextColor3 = locked and COLORS.Muted or COLORS.SubText,
-                        TextSize = 9,
-                        Font = Enum.Font.Gotham,
+                        Text = displayedTitle,
+                        TextColor3 = locked and COLORS.Muted or COLORS.Text,
+                        TextSize = 12,
+                        Font = Enum.Font.GothamBold,
                         TextXAlignment = Enum.TextXAlignment.Center,
                         TextTruncate = Enum.TextTruncate.AtEnd,
                         ZIndex = 18,
                     })
+
+                    if desc ~= "" then
+                        descLabel = New("TextLabel", {
+                            Parent = root,
+                            AnchorPoint = Vector2.new(0.5, 0),
+                            Position = UDim2.new(0.5, 0, 0, 30),
+                            Size = UDim2.new(1, -20, 0, 16),
+                            BackgroundTransparency = 1,
+                            Text = desc,
+                            TextColor3 = locked and COLORS.Muted or COLORS.SubText,
+                            TextSize = 9,
+                            Font = Enum.Font.Gotham,
+                            TextXAlignment = Enum.TextXAlignment.Center,
+                            TextTruncate = Enum.TextTruncate.AtEnd,
+                            ZIndex = 18,
+                        })
+                    end
+                else
+                    titleLabel = New("TextLabel", {
+                        Parent = root,
+                        Position = UDim2.new(0, textLeftOffset, 0, desc ~= "" and 8 or 10),
+                        Size = UDim2.new(1, -(textLeftOffset + textRightPadding), 0, 20),
+                        BackgroundTransparency = 1,
+                        Text = displayedTitle,
+                        TextColor3 = locked and COLORS.Muted or COLORS.Text,
+                        TextSize = 12,
+                        Font = Enum.Font.GothamBold,
+                        TextXAlignment = Enum.TextXAlignment.Left,
+                        TextTruncate = Enum.TextTruncate.AtEnd,
+                        ZIndex = 18,
+                    })
+
+                    if desc ~= "" then
+                        descLabel = New("TextLabel", {
+                            Parent = root,
+                            Position = UDim2.new(0, textLeftOffset, 0, 30),
+                            Size = UDim2.new(1, -(textLeftOffset + textRightPadding), 0, 16),
+                            BackgroundTransparency = 1,
+                            Text = desc,
+                            TextColor3 = locked and COLORS.Muted or COLORS.SubText,
+                            TextSize = 9,
+                            Font = Enum.Font.Gotham,
+                            TextXAlignment = Enum.TextXAlignment.Left,
+                            TextTruncate = Enum.TextTruncate.AtEnd,
+                            ZIndex = 18,
+                        })
+                    end
                 end
 
                 local iconSize = 17
@@ -5498,6 +5973,21 @@ function DarkyUIGen2:CreateWindow(config)
                     if root and root.Parent then
                         root.BackgroundColor3 = color
                     end
+                end
+
+                if backgroundThemeName then
+                    RegisterTheme(function(themeName, colors)
+                        if root and root.Parent then
+                            if themeName == backgroundThemeName then
+                                normalColor = colors.Accent
+                            else
+                                local requestedTheme = THEMES[backgroundThemeName]
+                                normalColor = requestedTheme and requestedTheme.Accent or normalColor
+                            end
+                            hoverColor = ResolveStyleColor(buttonConfig.HoverColor, DeriveHoverColor(normalColor))
+                            root.BackgroundColor3 = normalColor
+                        end
+                    end)
                 end
 
                 local function activate()
@@ -7313,7 +7803,7 @@ function DarkyUIGen2:CreateWindow(config)
     -- OPEN MAIN UI
     --====================================================
 
-    if not Window._KeyLocked then
+    if not Window._KeyLocked and not Window._ProgressLocked then
         main.Size = UDim2.fromOffset(
             WINDOW_WIDTH,
             0
@@ -7531,7 +8021,7 @@ end
 -- })
 --
 -- Section:CreateDropdown({
---     Title = "Advanced Values",
+--     Title = "Rich Values",
 --     Values = {
 --         {
 --             Title = "New file",
@@ -7581,6 +8071,25 @@ end
 -- })
 --========================================================
 
+-- ProgressBar usage (Rework Mode):
+-- local Progress = DarkyUI:CreateProgressBar({
+--     Title = "Download",
+--     Desc = "Downloading files...",
+--     UserList = {
+--         "123456789", -- optional UserId allowlist
+--     },
+--     Value = {
+--         Min = 0,
+--         Max = 100,
+--         Default = 25,
+--     },
+-- })
+--
+-- UserList is optional. If it is omitted, no user verification happens.
+-- If UserList is present and the LocalPlayer.UserId is not listed, the
+-- player is kicked after the startup check completes.
+-- Duration is optional and defaults to 2.5 seconds.
+
 -- Tab usage:
 -- local Tab = Window:CreateTab({
 --     Title = "My Tab",
@@ -7601,6 +8110,12 @@ end
 
 -- CustomEmptyPage appears in the actual right-side Page when it has no sections/elements.
 
+-- Page usage:
+-- local Page = Tab:CreatePage({
+--     Title = "Main",
+--     Icon = "house",
+-- })
+--
 -- Section usage:
 -- local Section1 = Tab:CreateSection({
 --     Title = "General Settings",
