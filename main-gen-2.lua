@@ -1,41 +1,20 @@
---========================================================
--- DarkyUI v1.5 (Rework Mode)
--- Clean single-file Roblox UI library
---========================================================
--- Features:
---   • 550x340 main window
---   • PC + mobile window dragging
---   • Draggable floating minimize/restore button
---   • Square corners
---   • Search bar
---   • Profile + username
---   • Lucide icon names + Roblox asset IDs
---   • Tabs with scrolling
---   • Auto-sized independent sections (NO section Size option)
---   • Automatic page scrolling only when content overflows
---   • Button / Toggle / Slider / Input / Dropdown / Colorpicker
---   • Centered searchable dropdown popup
---   • Themes: Red / BlueSky / White / Yellow / Green / Purple / Orange
---   • Theme is selected in CreateWindow with Theme = "BlueSky"
---   • Theme accents update supported themed elements + KeySystem
---   • HiderSearchBar = false shows SearchBar; true hides it
---   • Notification automatically uses Window.Image
---   • Rework ProgressBar startup / user verification / animated loading icon
---   • KeySystem can be created BEFORE or AFTER CreateWindow
---   • Optional saved key
---========================================================
+-- DarkyUI v1.5.1 | Rework Mode
+--
+-- ________  _______   ________  ________     ___       ___  ___  ________     |\_____  \|\  ___ \|\   __  \|\   __  \   |\  \     |\  \|\  \|\   __  \     \|___/  /\ \   __/|\ \  |\  \ \  |\  \  \ \  \    \ \  \\  \ \  |\  \
+--     /  / /\ \  \_|/_\ \   _  _\ \  \\  \  \  \ \\  \  \ \   __  \      /  /_/__\ \  \_\ \ \  \\  \\ \  \\  \  \ \  \____\ \  \\  \ \  \ \  \     |\________\ \_______\ \__\\ _\\ \_______\  \ \_______\ \_______\ \__\ \__\     \|_______|\|_______|\|__|\|__|\|_______|   \|_______|\|_______|\|__|\|__|
+--
+-- Reworked Roblox UI library.
+-- Core: Window / Tabs / Sections / Button / Toggle / Slider / Input / Dropdown / Colorpicker / ProgressBar.
+-- Theme remains independent from Colorpicker preset colors.
 
 local DarkyUIGen2 = {}
-
---========================================================
 -- DARKYUI REWORK API
---========================================================
 -- CreateWindow:
 --   Title = "..."                         Window title.
 --   Image = "door-open" / asset / URL      Window icon.
 --   Subtitle = "..."                      Small subtitle.
 --   Folder = "MySuperHub"                 Storage folder.
---   Size = UDim2.fromOffset(580, 460)     Window size.
+--   Size = UDim2.fromOffset(550, 350)     Window size.
 --   Theme = "BlueSky"                     Window theme.
 --   Transparent = true                    Glass/translucent main panel.
 --   Resizable = true                      Enables resize handle.
@@ -59,17 +38,13 @@ local DarkyUIGen2 = {}
 --   Dropdown = normal values or rich values; Multi supported.
 --   Toggle   = Type "Toggle" or "Checkbox".
 --   Slider   = Value {Min, Max, Default}; Step supported.
---   Colorpicker = title/description + right click icon + preset color popup; selected colors are independent of the global theme.
+--   Colorpicker = title/description + right-side icon + preset color popup.
+--                Changing a preset only changes that Colorpicker. It never changes the global theme, slider, or toggle colors.
 --   ProgressBar = startup progress {Min, Max, Default} + optional UserList verification.
 --   Input    = Type "Default" or "Textarea"; Placeholder supported.
 --
 -- Desc is displayed under the element title when supplied.
---========================================================
-
---========================================================
 -- SERVICES
---========================================================
-
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
@@ -77,11 +52,7 @@ local CoreGui = game:GetService("CoreGui")
 local ContentProvider = game:GetService("ContentProvider")
 local HttpService = game:GetService("HttpService")
 local LocalPlayer = Players.LocalPlayer
-
---========================================================
 -- CONSTANTS
---========================================================
-
 local WINDOW_WIDTH = 550
 local WINDOW_HEIGHT = 350
 
@@ -153,10 +124,7 @@ DarkyUIGen2._KeyPassed = false
 DarkyUIGen2._ProgressBar = nil
 DarkyUIGen2._ProgressComplete = false
 DarkyUIGen2._ThemeObjects = {}
-
---========================================================
 -- FLAG REGISTRY
---========================================================
 -- Any element created with a Flag in its config (e.g.
 -- Section:CreateToggle({ Flag = "MyToggle", ... })) registers itself
 -- here automatically, keyed by that flag string. This is what lets
@@ -193,10 +161,7 @@ local function RegisterFlag(flag, object)
         DarkyUIGen2._PendingFlagValues[flag] = nil
     end
 end
-
---========================================================
 -- FILE I/O SAFETY HELPERS
---========================================================
 -- writefile/readfile/isfile/listfiles/makefolder/isfolder/delfile are
 -- executor-only globals, not guaranteed to exist. Every call is
 -- guarded with typeof(...) ~= "function" and wrapped in pcall, same
@@ -310,10 +275,7 @@ local function ListConfigNames(folder)
 
     return names
 end
-
---========================================================
 -- SAVE MANAGER
---========================================================
 -- Persists the value of every Flag-tagged element (toggles, sliders,
 -- inputs, dropdowns) plus the active theme, to a JSON file the user
 -- names, and restores them all on load. Must be usable before
@@ -484,10 +446,7 @@ function SaveManager:LoadAutoloadConfig()
 end
 
 DarkyUIGen2.SaveManager = SaveManager
-
---========================================================
 -- INTERFACE MANAGER
---========================================================
 -- Persists interface-level preferences (currently: the active theme)
 -- separately from SaveManager's per-config saves, since the theme is
 -- usually something the user wants to stick permanently rather than
@@ -539,10 +498,7 @@ function InterfaceManager:LoadSettings()
 end
 
 DarkyUIGen2.InterfaceManager = InterfaceManager
-
---========================================================
 -- FLOATING BUTTON MANAGER
---========================================================
 -- Persists the floating minimize button's last screen position so it
 -- reopens in the same spot next session instead of resetting to the
 -- default corner every time.
@@ -631,11 +587,7 @@ local POP = TweenInfo.new(
     false,
     0
 )
-
---========================================================
 -- HELPERS
---========================================================
-
 local function New(className, properties)
     local object = Instance.new(className)
 
@@ -847,11 +799,7 @@ local function CreateAuraFor(gui, target, colorProvider, options)
     end
     sync(); return object
 end
-
---========================================================
 -- HTTP / LOADSTRING
---========================================================
-
 local function HttpGet(url)
     local methods = {
         function()
@@ -895,11 +843,7 @@ local function GetLoadstring()
 
     return nil
 end
-
---========================================================
 -- LUCIDE
---========================================================
-
 local LUCIDE_URL =
     "https://raw.githubusercontent.com/Footagesus/Icons/refs/heads/main/lucide/dist/Icons.lua"
 
@@ -990,10 +934,7 @@ local function ResolveIcon(icon)
 
     return nil, false
 end
-
---========================================================
 -- THEME
---========================================================
 -- Declared here (ahead of Icon below) since themed icons need to
 -- register for live theme-change updates.
 
@@ -1173,11 +1114,7 @@ local function IconOrBadge(parent, icon, size, position, zIndex, fallbackText)
 
     return badge, true
 end
-
---========================================================
 -- VISUAL DESIGN HELPERS
---========================================================
-
 local function AddTopAccent(parent)
     return New("Frame", {
         Parent = parent,
@@ -1250,11 +1187,7 @@ function DarkyUIGen2:SetTheme(name)
 end
 
 DarkyUIGen2.Theme = DarkyUIGen2.SetTheme
-
---========================================================
 -- NOTIFICATIONS
---========================================================
-
 function DarkyUIGen2:Notify(config)
     config = config or {}
 
@@ -1481,11 +1414,7 @@ function DarkyUIGen2:Notify(config)
 
     return notification
 end
-
---========================================================
 -- KEY SYSTEM
---========================================================
-
 local function SafeClipboard(text)
     local methods = {
         function()
@@ -1658,11 +1587,7 @@ local function MakeKeySystem(config)
         end
         if keyAura and keyAura.Root and keyAura.Root.Parent then keyAura:SetColor(colors.Accent) end
     end)
-
-    --====================================================
     -- HEADER
-    --====================================================
-
     local header = New(
         "Frame",
         {
@@ -1724,11 +1649,7 @@ local function MakeKeySystem(config)
             ZIndex = 2003,
         }
     )
-
-    --====================================================
     -- LEFT THUMBNAIL
-    --====================================================
-
     local left = New(
         "Frame",
         {
@@ -1800,11 +1721,7 @@ local function MakeKeySystem(config)
             ZIndex = 2005,
         }
     )
-
-    --====================================================
     -- RIGHT INPUT AREA
-    --====================================================
-
     local right = New(
         "Frame",
         {
@@ -1924,11 +1841,7 @@ local function MakeKeySystem(config)
             ZIndex = 2007,
         }
     )
-
-    --====================================================
     -- BOTTOM BUTTONS
-    --====================================================
-
     local function KeyButton(x, text, iconName, background)
         local button = New(
             "TextButton",
@@ -2047,11 +1960,7 @@ local function MakeKeySystem(config)
     AddCorner(cancelButton, 9)
     AddCorner(getKeyButton, 9)
     AddCorner(submitButton, 9)
-
-    --====================================================
     -- VALIDATION / SAVE
-    --====================================================
-
     local function Validate(key)
         if typeof(config.KeyValidator) ~= "function" then
             return false
@@ -2240,11 +2149,7 @@ local function MakeKeySystem(config)
             end
         end
     )
-
-    --====================================================
     -- SAVED KEY
-    --====================================================
-
     local saved = ReadKey()
 
     if saved and Validate(saved) then
@@ -2306,11 +2211,7 @@ function DarkyUIGen2:CreateAura(target, config)
     end
     return aura
 end
-
---========================================================
 -- REWORK PROGRESS BAR
---========================================================
-
 function DarkyUIGen2:_RevealAfterStartup()
     local Window = DarkyUIGen2._Window
     if not Window or Window.Destroyed then
@@ -2710,11 +2611,7 @@ function DarkyUIGen2:CreateKeySystem(config)
 
     return keySystem
 end
-
---========================================================
 -- WINDOW
---========================================================
-
 function DarkyUIGen2:CreateWindow(config)
     config = config or {}
 
@@ -2839,11 +2736,7 @@ function DarkyUIGen2:CreateWindow(config)
         DarkyUIGen2._ProgressBar ~= nil
         and not DarkyUIGen2._ProgressBar.Destroyed
         and not DarkyUIGen2._ProgressComplete
-
-    --====================================================
     -- GUI
-    --====================================================
-
     local oldGui = CoreGui:FindFirstChild(
         MAIN_GUI_NAME
     )
@@ -2865,11 +2758,7 @@ function DarkyUIGen2:CreateWindow(config)
     )
 
     Window.Gui = gui
-
-    --====================================================
     -- FLOATING BUTTON
-    --====================================================
-
     local floating = New(
         "TextButton",
         {
@@ -2924,11 +2813,7 @@ function DarkyUIGen2:CreateWindow(config)
         501,
         Window.Title
     )
-
-    --====================================================
     -- MAIN
-    --====================================================
-
     local main = New(
         "Frame",
         {
@@ -2986,11 +2871,7 @@ function DarkyUIGen2:CreateWindow(config)
         })
     end
     Window.Aura = mainAura
-
-    --====================================================
     -- TOP BAR
-    --====================================================
-
     local top = New(
         "Frame",
         {
@@ -3034,11 +2915,7 @@ function DarkyUIGen2:CreateWindow(config)
             mainAura:SetColor(colors.Accent)
         end
     end)
-
-    --====================================================
     -- DRAG MAIN WINDOW
-    --====================================================
-
     do
         local dragging = false
         local dragInput
@@ -3096,11 +2973,7 @@ function DarkyUIGen2:CreateWindow(config)
             end
         end)
     end
-
-    --====================================================
     -- WINDOW ICON
-    --====================================================
-
     local iconHolder = New(
         "Frame",
         {
@@ -3120,11 +2993,7 @@ function DarkyUIGen2:CreateWindow(config)
         22,
         Window.Title
     )
-
-    --====================================================
     -- TITLE + SUBTITLE
-    --====================================================
-
     local titleLabel = New(
         "TextLabel",
         {
@@ -3158,10 +3027,7 @@ function DarkyUIGen2:CreateWindow(config)
             ZIndex = 22,
         }
     )
-
-    --====================================================
     -- TAG (small colored badge next to the window title)
-    --====================================================
     -- Window:Tag({ Title = "Featured", Icon = "star", Color = ... })
     -- Also callable as Tab:Tag(...) on any tab (see below) since
     -- that's how it reads most naturally when scripting, but it's
@@ -3269,11 +3135,7 @@ function DarkyUIGen2:CreateWindow(config)
 
         return self
     end
-
-    --====================================================
     -- SEARCH BAR
-    --====================================================
-
     local searchBox
 
     if Window.SearchEnabled then
@@ -3326,11 +3188,7 @@ function DarkyUIGen2:CreateWindow(config)
 
         Window.SearchBox = searchBox
     end
-
-    --====================================================
     -- MINIMIZE / CLOSE
-    --====================================================
-
     local minimizeButton = New(
         "TextButton",
         {
@@ -3378,10 +3236,7 @@ function DarkyUIGen2:CreateWindow(config)
     if closeIcon then
         closeIcon.ImageColor3 = COLORS.Danger
     end
-
-    --====================================================
     -- RESIZE HANDLE
-    --====================================================
     if Window.Resizable then
         local resizeHandle = New(
             "TextButton",
@@ -3445,11 +3300,7 @@ function DarkyUIGen2:CreateWindow(config)
             end
         end)
     end
-
-    --====================================================
     -- BODY
-    --====================================================
-
     local body = New(
         "Frame",
         {
@@ -3460,11 +3311,7 @@ function DarkyUIGen2:CreateWindow(config)
             ZIndex = 10,
         }
     )
-
-    --====================================================
     -- TABS
-    --====================================================
-
     local tabs = New(
         "ScrollingFrame",
         {
@@ -3513,11 +3360,7 @@ function DarkyUIGen2:CreateWindow(config)
             Padding = UDim.new(0, 5),
         }
     )
-
-    --====================================================
     -- PROFILE
-    --====================================================
-
     if Window.UserConfig.Profile
         or Window.UserConfig.Username then
 
@@ -3615,11 +3458,7 @@ function DarkyUIGen2:CreateWindow(config)
             )
         end
     end
-
-    --====================================================
     -- CONTENT
-    --====================================================
-
     local content = New(
         "Frame",
         {
@@ -3640,11 +3479,7 @@ function DarkyUIGen2:CreateWindow(config)
             ZIndex = 11,
         }
     )
-
-    --====================================================
     -- SEARCH LOGIC
-    --====================================================
-
     local function SearchElements(text)
         text = tostring(text or ""):lower()
 
@@ -3675,11 +3510,7 @@ function DarkyUIGen2:CreateWindow(config)
                 SearchElements(searchBox.Text)
             end)
     end
-
-    --====================================================
     -- WINDOW METHODS
-    --====================================================
-
     function Window:Minimize()
         if self.Destroyed
             or self.Minimized
@@ -3741,11 +3572,7 @@ function DarkyUIGen2:CreateWindow(config)
             }
         )
     end
-
-    --====================================================
     -- DELETE CONFIRMATION POPUP
-    --====================================================
-
     local function ShowDeleteConfirm()
         local confirmGui = New(
             "ScreenGui",
@@ -4070,11 +3897,7 @@ function DarkyUIGen2:CreateWindow(config)
     function Window:GetActiveTab()
         return self.ActiveTab
     end
-
-    --====================================================
     -- BUTTON EVENTS
-    --====================================================
-
     minimizeButton.MouseButton1Click:Connect(function()
         ClickPop(minimizeButton)
         self = Window
@@ -4085,11 +3908,7 @@ function DarkyUIGen2:CreateWindow(config)
         ClickPop(closeButton)
         ShowDeleteConfirm()
     end)
-
-    --====================================================
     -- FLOATING BUTTON DRAG + TAP
-    --====================================================
-
     do
         local dragging = false
         local dragInput
@@ -4166,10 +3985,7 @@ function DarkyUIGen2:CreateWindow(config)
             end
         end)
     end
-
-    --====================================================
     -- TAB SECTION (collapsible group of tabs)
-    --====================================================
     -- Window:Section({ Title = "..." }) groups tabs under a
     -- collapsible header in the sidebar - click the header (or the
     -- arrow) to slide the group open/closed. Purely optional: plain
@@ -4334,11 +4150,7 @@ function DarkyUIGen2:CreateWindow(config)
 
         return TabSection
     end
-
-    --====================================================
     -- TAB / CREATE TAB
-    --====================================================
-
     function Window:Tab(tabConfig, parentContainer)
         return self:CreateTab(tabConfig, parentContainer)
     end
@@ -4505,10 +4317,7 @@ function DarkyUIGen2:CreateWindow(config)
                 ZIndex = 17,
             }
         )
-
-        --================================================
         -- PAGE SCAFFOLD (reusable: default page + Tab:CreatePage)
-        --================================================
         -- Builds one scrollable page with the two-column section
         -- layout described above. Returns a page object carrying its
         -- own independent column/section state, so a Tab can have
@@ -4786,10 +4595,7 @@ function DarkyUIGen2:CreateWindow(config)
                 tabIcon.ImageColor3 = COLORS.Muted
             end
         end
-
-        --================================================
         -- PAGE SLIDER (shown only once a 2nd page exists)
-        --================================================
         -- Each tab can hold multiple pages (Tab:CreatePage /
         -- Section:CreatePage). Only one page is visible within the
         -- tab at a time. This bar shows the current page's icon and
@@ -5178,10 +4984,7 @@ function DarkyUIGen2:CreateWindow(config)
                 EndDrag(input)
             end
         end)
-
-        --================================================
         -- PAGE DROPDOWN (3+ pages)
-        --================================================
         -- Once a tab has 3 or more pages, swiping through them one
         -- at a time stops scaling - the bar becomes a button that
         -- opens a small popup listing every page, tap one to jump
@@ -5450,10 +5253,7 @@ function DarkyUIGen2:CreateWindow(config)
                 defaultPageObj.Frame.Visible = true
             end
         end
-
-        --================================================
         -- TAG (alias to Window:Tag)
-        --================================================
         -- Tab:Tag({ Title = "Featured", Icon = "star", Color = ... })
         -- reads naturally when scripting from a tab, but the badge
         -- itself lives on the window title bar, not per-tab - this
@@ -5462,11 +5262,7 @@ function DarkyUIGen2:CreateWindow(config)
         function Tab:Tag(tagConfig)
             return Window:Tag(tagConfig)
         end
-
-        --================================================
         -- CREATE PAGE
-        --================================================
-
         function Tab:CreatePage(pageConfig)
             pageConfig = pageConfig or {}
 
@@ -5603,11 +5399,7 @@ function DarkyUIGen2:CreateWindow(config)
                 )
             end
         end)
-
-        --================================================
         -- CREATE SECTION
-        --================================================
-
         function Tab:CreateSection(sectionConfig, targetPage)
             sectionConfig = sectionConfig or {}
             targetPage = targetPage or Tab._DefaultPage
@@ -5820,11 +5612,7 @@ function DarkyUIGen2:CreateWindow(config)
                 ClickPop(header)
                 Section:SetOpen(not Section._Expanded, true)
             end)
-
-            --============================================
             -- BUTTON
-            --============================================
-
             function Section:CreateButton(buttonConfig)
                 buttonConfig = buttonConfig or {}
 
@@ -6045,12 +5833,7 @@ function DarkyUIGen2:CreateWindow(config)
                 Register(root, title, desc)
                 return object
             end
-
-            --============================================
             -- TOGGLE
-
-            --============================================
-
             function Section:CreateToggle(toggleConfig)
                 toggleConfig = toggleConfig or {}
 
@@ -6184,14 +5967,18 @@ function DarkyUIGen2:CreateWindow(config)
                             toggleConfig.Icon,
                             11,
                             UDim2.new(0.5, -5.5, 0.5, -5.5),
-                            21,
+                            25,
                             false
                         )
 
-                        if knobIcon and toggleConfig.IconColor ~= nil then
-                            pcall(function()
-                                knobIcon.ImageColor3 = toggleConfig.IconColor
-                            end)
+                        if knobIcon then
+                            knobIcon.ImageTransparency = 0
+                            if toggleConfig.IconColor ~= nil then
+                                local iconColor = ResolveStyleColor(toggleConfig.IconColor, COLORS.Text)
+                                knobIcon.ImageColor3 = iconColor
+                            else
+                                knobIcon.ImageColor3 = COLORS.Text
+                            end
                         end
                     end
                 end
@@ -6222,6 +6009,16 @@ function DarkyUIGen2:CreateWindow(config)
                             BackgroundColor3 =
                                 state and COLORS.White or COLORS.SubText,
                         })
+
+                        local knobIcon = iconOrKnob:FindFirstChildOfClass("ImageLabel")
+                        if knobIcon then
+                            knobIcon.ImageTransparency = 0
+                            if toggleConfig.IconColor ~= nil then
+                                knobIcon.ImageColor3 = ResolveStyleColor(toggleConfig.IconColor, COLORS.Text)
+                            else
+                                knobIcon.ImageColor3 = COLORS.Text
+                            end
+                        end
                     end
                 end
 
@@ -6272,11 +6069,7 @@ function DarkyUIGen2:CreateWindow(config)
 
                 return object
             end
-
-            --============================================
             -- SLIDER
-            --============================================
-
             function Section:CreateSlider(sliderConfig)
                 sliderConfig = sliderConfig or {}
 
@@ -6661,11 +6454,7 @@ function DarkyUIGen2:CreateWindow(config)
 
                 return object
             end
-
-            --============================================
             -- INPUT
-            --============================================
-
             function Section:CreateInput(inputConfig)
                 inputConfig = inputConfig or {}
 
@@ -6839,11 +6628,7 @@ function DarkyUIGen2:CreateWindow(config)
 
                 return object
             end
-
-            --============================================
             -- COLORPICKER (REWORK)
-            --============================================
-
             function Section:CreateColorpicker(colorConfig)
                 colorConfig = colorConfig or {}
 
@@ -6984,6 +6769,7 @@ function DarkyUIGen2:CreateWindow(config)
                         local check = button:FindFirstChild("SelectedCheck")
                         if check then
                             check.Visible = selected
+                            check.TextColor3 = currentColor
                         end
                     end
                 end
@@ -7048,7 +6834,7 @@ function DarkyUIGen2:CreateWindow(config)
                         Position = UDim2.new(1, -8, 0.5, 0),
                         Size = UDim2.fromOffset(16, 16),
                         Text = "✓",
-                        TextColor3 = CurrentTheme().Accent,
+                        TextColor3 = COLORS.Text,
                         TextSize = 13,
                         Font = Enum.Font.GothamBold,
                         Visible = false,
@@ -7248,11 +7034,7 @@ function DarkyUIGen2:CreateWindow(config)
 
                 return object
             end
-
-            --============================================
             -- DROPDOWN
-            --============================================
-
             function Section:CreateDropdown(dropdownConfig)
                 dropdownConfig = dropdownConfig or {}
 
@@ -8162,10 +7944,7 @@ function DarkyUIGen2:CreateWindow(config)
 
                 return object
             end
-
-            --============================================
             -- TAB ELEMENT SHORTCUT
-            --============================================
             -- Tab:CreateSlider(...) creates/uses an automatic
             -- "Elements" section when no section was supplied.
             if not Tab.CreateSlider then
@@ -8181,10 +7960,7 @@ function DarkyUIGen2:CreateWindow(config)
                     )
                 end
             end
-
-            --============================================
             -- CREATE PAGE (alias)
-            --============================================
             -- Section1:CreatePage({ Title = "Movement" }) works the
             -- same as Tab:CreatePage({ Title = "Movement" }) - pages
             -- belong to the Tab, not any one section, but this alias
@@ -8209,22 +7985,14 @@ function DarkyUIGen2:CreateWindow(config)
 
         return Tab
     end
-
-    --====================================================
     -- STORE WINDOW
-    --====================================================
-
     DarkyUIGen2._Window = Window
 
     -- This is the icon source for future notifications.
     if config.Image ~= nil then
         DarkyUIGen2.CurrentImage = config.Image
     end
-
-    --====================================================
     -- OPEN MAIN UI
-    --====================================================
-
     if not Window._KeyLocked and not Window._ProgressLocked then
         main.Size = UDim2.fromOffset(
             WINDOW_WIDTH,
@@ -8245,10 +8013,7 @@ function DarkyUIGen2:CreateWindow(config)
 
     return Window
 end
-
---========================================================
 -- SAVE MANAGER / INTERFACE MANAGER UI BUILDERS
---========================================================
 -- Added down here (rather than next to the rest of SaveManager /
 -- InterfaceManager above) since they need New/AddCorner/Stroke/Icon,
 -- which aren't defined yet that early in the file.
@@ -8395,11 +8160,7 @@ function InterfaceManager:BuildInterfaceSection(Tab)
 
     return Section
 end
-
-
---========================================================
 -- REWORK USAGE REFERENCE
---========================================================
 -- local Window = DarkyUI:CreateWindow({
 --     Title = "My Super Hub",
 --     Image = "door-open",
@@ -8497,8 +8258,6 @@ end
 --     Desc = "Choose a theme color",
 --     Locked = false,
 -- })
---========================================================
-
 -- ProgressBar usage (Rework Mode):
 -- local Progress = DarkyUI:CreateProgressBar({
 --     Title = "Download",
