@@ -5,7 +5,7 @@
 --
 -- Reworked Roblox UI library.
 -- Core: Window / Tabs / Sections / Button / Toggle / Slider / Input / Dropdown / Colorpicker / ProgressBar.
--- Theme remains independent from Colorpicker preset colors.
+-- Colorpicker presets can override the current accent color without changing Border/Blur settings.
 
 local DarkyUIGen2 = {}
 -- DARKYUI REWORK API
@@ -39,7 +39,7 @@ local DarkyUIGen2 = {}
 --   Toggle   = Type "Toggle" or "Checkbox".
 --   Slider   = Value {Min, Max, Default}; Step supported.
 --   Colorpicker = title/description + right-side icon + preset color popup.
---                Changing a preset only changes that Colorpicker. It never changes the global theme, slider, or toggle colors.
+--                Selecting a preset updates the shared accent color used by toggles, sliders, accent borders/icons, and aura.
 --   ProgressBar = startup progress {Min, Max, Default} + optional UserList verification.
 --   Input    = Type "Default" or "Textarea"; Placeholder supported.
 --
@@ -124,6 +124,9 @@ DarkyUIGen2._KeyPassed = false
 DarkyUIGen2._ProgressBar = nil
 DarkyUIGen2._ProgressComplete = false
 DarkyUIGen2._ThemeObjects = {}
+DarkyUIGen2._AccentOverride = nil
+DarkyUIGen2._AccentOverride2 = nil
+DarkyUIGen2._ColorpickerAccentActive = false
 -- FLAG REGISTRY
 -- Any element created with a Flag in its config (e.g.
 -- Section:CreateToggle({ Flag = "MyToggle", ... })) registers itself
@@ -939,8 +942,44 @@ end
 -- register for live theme-change updates.
 
 local function CurrentTheme()
-    return THEMES[DarkyUIGen2.CurrentTheme]
-        or THEMES.BlueSky
+    local base = THEMES[DarkyUIGen2.CurrentTheme] or THEMES.BlueSky
+
+    if DarkyUIGen2._AccentOverride then
+        return {
+            Accent = DarkyUIGen2._AccentOverride,
+            Accent2 = DarkyUIGen2._AccentOverride2 or DarkyUIGen2._AccentOverride,
+        }
+    end
+
+    return base
+end
+
+local function ApplyAccentOverride(color)
+    if typeof(color) ~= "Color3" then
+        return false
+    end
+
+    -- Colorpicker accent mode is opt-in. When no Colorpicker is created,
+    -- these values remain nil and the library uses the selected Theme normally.
+    DarkyUIGen2._ColorpickerAccentActive = true
+    DarkyUIGen2._AccentOverride = color
+    DarkyUIGen2._AccentOverride2 = color:Lerp(Color3.fromRGB(255, 255, 255), 0.22)
+
+    local colors = CurrentTheme()
+
+    for index = #DarkyUIGen2._ThemeObjects, 1, -1 do
+        local callback = DarkyUIGen2._ThemeObjects[index]
+        if type(callback) == "function" then
+            local ok = pcall(callback, DarkyUIGen2.CurrentTheme, colors)
+            if not ok then
+                table.remove(DarkyUIGen2._ThemeObjects, index)
+            end
+        else
+            table.remove(DarkyUIGen2._ThemeObjects, index)
+        end
+    end
+
+    return true
 end
 
 local function ResolveStyleColor(value, fallback)
@@ -1156,6 +1195,9 @@ function DarkyUIGen2:SetTheme(name)
     end
 
     DarkyUIGen2.CurrentTheme = selected
+    DarkyUIGen2._ColorpickerAccentActive = false
+    DarkyUIGen2._AccentOverride = nil
+    DarkyUIGen2._AccentOverride2 = nil
 
     local colors = CurrentTheme()
 
@@ -1187,6 +1229,7 @@ function DarkyUIGen2:SetTheme(name)
 end
 
 DarkyUIGen2.Theme = DarkyUIGen2.SetTheme
+DarkyUIGen2._ApplyAccentOverride = ApplyAccentOverride
 -- NOTIFICATIONS
 function DarkyUIGen2:Notify(config)
     config = config or {}
@@ -6780,6 +6823,10 @@ function DarkyUIGen2:CreateWindow(config)
                     end
                     currentName = name
                     currentColor = palette[name]
+                    -- Presets act like accent colors: they update accent-driven
+                    -- toggles, sliders, icons, and accent borders/aura, while
+                    -- keeping Window.Border and Window.Blur settings unchanged.
+                    ApplyAccentOverride(currentColor)
                     updateColorButtonVisual()
                     refreshButtonStates()
                     if callCallback ~= false then
