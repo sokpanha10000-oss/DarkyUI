@@ -15,7 +15,7 @@
 --   • Automatic page scrolling only when content overflows
 --   • Button / Toggle / Slider / Input / Dropdown
 --   • Centered searchable dropdown popup
---   • Themes: Red / BlueSky / White / Yellow / Green / Purple / Orange / Gray
+--   • Themes: Red / BlueSky / White / Yellow / Green / Purple / Orange
 --   • Theme affects toggle + slider + KeySystem accent only
 --   • Notification automatically uses Window.Image
 --   • KeySystem can be created BEFORE CreateWindow
@@ -102,10 +102,6 @@ local THEMES = {
         Accent2 = Color3.fromRGB(245, 135, 55),
     },
 
-    Gray = {
-        Accent = Color3.fromRGB(120, 125, 135),
-        Accent2 = Color3.fromRGB(175, 180, 190),
-    },
 }
 
 local COLOR_PRESETS = {
@@ -115,7 +111,6 @@ local COLOR_PRESETS = {
     Orange = Color3.fromRGB(245, 135, 55),
     Purple = Color3.fromRGB(155, 95, 250),
     Green = Color3.fromRGB(65, 210, 120),
-    Gray = Color3.fromRGB(145, 145, 158),
     Yellow = Color3.fromRGB(240, 190, 55),
     Blue = Color3.fromRGB(60, 115, 250),
     Black = Color3.fromRGB(15, 15, 18),
@@ -2078,7 +2073,7 @@ local function MakeKeySystem(config)
             main,
             MED,
             {
-                Size = UDim2.fromOffset(500, 0)
+                Size = UDim2.fromOffset(WINDOW_WIDTH, 0)
             }
         )
 
@@ -2097,7 +2092,7 @@ local function MakeKeySystem(config)
                     DarkyUIGen2._Window.Main.Visible = true
 
                     DarkyUIGen2._Window.Main.Size =
-                        UDim2.fromOffset(550, 0)
+                        UDim2.fromOffset(WINDOW_WIDTH, 0)
 
                     Tween(
                         DarkyUIGen2._Window.Main,
@@ -2202,13 +2197,13 @@ local function MakeKeySystem(config)
         keyInput.Text = saved
         Finish()
     else
-        main.Size = UDim2.fromOffset(500, 0)
+        main.Size = UDim2.fromOffset(WINDOW_WIDTH, 0)
 
         Tween(
             main,
             MED,
             {
-                Size = UDim2.new(0, 320, 1, -20)
+                Size = UDim2.new(0, WINDOW_WIDTH, 1, -20)
             }
         )
     end
@@ -5422,7 +5417,7 @@ function DarkyUIGen2:CreateWindow(config)
                 -- Gen-2: sized and laid out like CreateButton - a
                 -- rounded panel with the title inside near the top,
                 -- the track larger and themed instead of a plain
-                -- gray bar, and the description (if any) sitting
+                -- neutral bar, and the description (if any) sitting
                 -- below the track rather than above it. Kept compact
                 -- rather than oversized so it's still easy to fit
                 -- several sliders in a section without it feeling
@@ -5500,7 +5495,7 @@ function DarkyUIGen2:CreateWindow(config)
                 )
 
                 -- Bigger, theme-colored track "rectangle UI" - a dim
-                -- tint of the active theme's accent, not a flat gray,
+                -- tint of the active theme's accent, not a flat neutral,
                 -- so switching themes restyles the slider background
                 -- too, not just the fill/value text.
                 local track = New(
@@ -5965,13 +5960,15 @@ function DarkyUIGen2:CreateWindow(config)
                 local multi =
                     dropdownConfig.Multi == true
 
-                local advanced = false
+                local advanced = dropdownConfig.__AdvancedDropdown == true
 
-                for _, candidate in ipairs(values) do
-                    if type(candidate) == "table"
-                        and (candidate.Title ~= nil or candidate.Type ~= nil) then
-                        advanced = true
-                        break
+                if not advanced then
+                    for _, candidate in ipairs(values) do
+                        if type(candidate) == "table"
+                            and (candidate.Title ~= nil or candidate.Type ~= nil) then
+                            advanced = true
+                            break
+                        end
                     end
                 end
 
@@ -6745,7 +6742,9 @@ function DarkyUIGen2:CreateWindow(config)
                 colorConfig = colorConfig or {}
                 local title = colorConfig.Title or "Colorpicker"
                 local desc = colorConfig.Desc or ""
-                local advancedPicker = colorConfig.Default ~= nil or colorConfig.Flag ~= nil or typeof(colorConfig.Callback) == "function"
+                local advancedPicker = colorConfig.__AdvancedColorpicker == true
+                    or colorConfig.Default ~= nil
+                    or colorConfig.Flag ~= nil
                 local locked = colorConfig.Locked == true
                 local color = advancedPicker and SafeColor3(colorConfig.Default, COLORS.White) or ResolvePresetColor((colorConfig.ColorList or {"White"})[1])
 
