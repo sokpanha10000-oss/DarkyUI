@@ -59,7 +59,7 @@ local DarkyUIGen2 = {}
 --   Dropdown = normal values or rich values; Multi supported.
 --   Toggle   = Type "Toggle" or "Checkbox".
 --   Slider   = Value {Min, Max, Default}; Step supported.
---   Colorpicker = title/description + right click icon + full HSV square + hex input; defaults are built in.
+--   Colorpicker = title/description + right click icon + preset color popup; selected colors are independent of the global theme.
 --   ProgressBar = startup progress {Min, Max, Default} + optional UserList verification.
 --   Input    = Type "Default" or "Textarea"; Placeholder supported.
 --
@@ -6911,7 +6911,16 @@ function DarkyUIGen2:CreateWindow(config)
 
                 local clickIcon = Icon(colorButton, colorConfig.Icon or "mouse-pointer-click", 15,
                     UDim2.new(0.5, -7.5, 0.5, -7.5), 20, false)
-                if clickIcon then clickIcon.ImageColor3 = CurrentTheme().Accent end
+
+                local function updateColorButtonVisual()
+                    colorButton.BackgroundColor3 = currentColor
+                    if clickIcon then
+                        local luminance = currentColor.R * 0.299 + currentColor.G * 0.587 + currentColor.B * 0.114
+                        clickIcon.ImageColor3 = luminance > 0.58 and Color3.fromRGB(20, 20, 20) or Color3.fromRGB(255, 255, 255)
+                    end
+                end
+
+                updateColorButtonVisual()
 
                 -- Popup lives in its own CoreGui overlay so it is never clipped by
                 -- the page/section holder. It behaves like an extra floating element.
@@ -6985,6 +6994,7 @@ function DarkyUIGen2:CreateWindow(config)
                     end
                     currentName = name
                     currentColor = palette[name]
+                    updateColorButtonVisual()
                     refreshButtonStates()
                     if callCallback ~= false then
                         fireCallback()
