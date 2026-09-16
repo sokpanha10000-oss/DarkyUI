@@ -1,4 +1,4 @@
--- DarkyUI v1.5.1 | Rework Mode
+-- DarkyUI v1.5.2 | Rework Mode
 --
 -- ________  _______   ________  ________     ___       ___  ___  ________     |\_____  \|\  ___ \|\   __  \|\   __  \   |\  \     |\  \|\  \|\   __  \     \|___/  /\ \   __/|\ \  |\  \ \  |\  \  \ \  \    \ \  \\  \ \  |\  \
 --     /  / /\ \  \_|/_\ \   _  _\ \  \\  \  \  \ \\  \  \ \   __  \      /  /_/__\ \  \_\ \ \  \\  \\ \  \\  \  \ \  \____\ \  \\  \ \  \ \  \     |\________\ \_______\ \__\\ _\\ \_______\  \ \_______\ \_______\ \__\ \__\     \|_______|\|_______|\|__|\|__|\|_______|   \|_______|\|_______|\|__|\|__|
@@ -1728,6 +1728,16 @@ local function MakeKeySystem(config)
 
         Stroke(image, COLORS.Border, 1)
     else
+        if TabSection.Icon then
+            Icon(
+                header,
+                TabSection.Icon,
+                13,
+                UDim2.fromOffset(4, 6),
+                16
+            )
+        end
+
         New(
             "TextLabel",
             {
@@ -4029,13 +4039,13 @@ function DarkyUIGen2:CreateWindow(config)
         end)
     end
     -- TAB SECTION (collapsible group of tabs)
-    -- Window:Section({ Title = "..." }) groups tabs under a
+    -- Window:CreateSection({ Title = "...", Icon = "star", Opened = true }) groups tabs under a
     -- collapsible header in the sidebar - click the header (or the
     -- arrow) to slide the group open/closed. Purely optional: plain
     -- Window:CreateTab(...) still works exactly as before and adds
     -- an ungrouped tab straight into the list.
 
-    function Window:Section(sectionConfig)
+    function Window:CreateSection(sectionConfig)
         sectionConfig = sectionConfig or {}
 
         local sectionTitle = tostring(
@@ -4044,7 +4054,9 @@ function DarkyUIGen2:CreateWindow(config)
 
         local TabSection = {
             Title = sectionTitle,
-            Collapsed = false,
+            Icon = sectionConfig.Icon,
+            Opened = sectionConfig.Opened ~= false,
+            Collapsed = sectionConfig.Opened == false,
         }
 
         -- A real nested container keeps the header and its child tabs
@@ -4093,8 +4105,8 @@ function DarkyUIGen2:CreateWindow(config)
             "TextLabel",
             {
                 Parent = header,
-                Position = UDim2.fromOffset(4, 0),
-                Size = UDim2.new(1, -26, 1, 0),
+                Position = UDim2.fromOffset(24, 0),
+                Size = UDim2.new(1, -46, 1, 0),
                 BackgroundTransparency = 1,
                 Text = sectionTitle,
                 TextColor3 = COLORS.SubText,
@@ -4113,6 +4125,10 @@ function DarkyUIGen2:CreateWindow(config)
             UDim2.new(1, -20, 0.5, -6),
             16
         )
+
+        if arrowIcon then
+            arrowIcon.Rotation = TabSection.Collapsed and -90 or 0
+        end
 
         local group = New(
             "Frame",
@@ -4193,6 +4209,10 @@ function DarkyUIGen2:CreateWindow(config)
 
         return TabSection
     end
+
+    -- Backward-compatible alias.
+    Window.Section = Window.CreateSection
+
     -- TAB / CREATE TAB
     function Window:Tab(tabConfig, parentContainer)
         return self:CreateTab(tabConfig, parentContainer)
@@ -8324,6 +8344,13 @@ end
 -- player is kicked after the startup check completes.
 -- Duration is optional and defaults to 2.5 seconds.
 
+-- Tab Section usage:
+-- local TabSection = Window:CreateSection({
+--     Title = "Tab Section",
+--     Icon = "star",
+--     Opened = true,
+-- })
+--
 -- Tab usage:
 -- local Tab = Window:CreateTab({
 --     Title = "My Tab",
