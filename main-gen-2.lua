@@ -1605,7 +1605,7 @@ local function MakeKeySystem(config)
         BorderSizePixel = 0,
         ZIndex = 2001,
     })
-    AddCorner(main, 0)
+    AddCorner(main, 14)
     local keyStroke = Stroke(main, KeySystem.Border and CurrentTheme().Accent or COLORS.Border, 1)
     keyStroke.Transparency = KeySystem.Border and 0 or 1
 
@@ -1633,7 +1633,7 @@ local function MakeKeySystem(config)
         BorderSizePixel = 0,
         ZIndex = 2002,
     })
-    AddCorner(header, 0)
+    AddCorner(header, 13)
     Stroke(header, COLORS.Border, 1)
 
     New("TextLabel", {
@@ -1671,7 +1671,7 @@ local function MakeKeySystem(config)
         BorderSizePixel = 0,
         ZIndex = 2003,
     })
-    AddCorner(right, 0)
+    AddCorner(right, 10)
     Stroke(right, COLORS.Border, 1)
 
     New("TextLabel", {
@@ -1695,7 +1695,7 @@ local function MakeKeySystem(config)
         BorderSizePixel = 0,
         ZIndex = 2005,
     })
-    AddCorner(inputFrame, 0)
+    AddCorner(inputFrame, 8)
     Stroke(inputFrame, COLORS.Border, 1)
 
     local inputIcon = Icon(inputFrame, "key-round", 16, UDim2.fromOffset(10,12), 2006)
@@ -1741,7 +1741,7 @@ local function MakeKeySystem(config)
             Text = "",
             ZIndex = 2008,
         })
-        AddCorner(button,0)
+        AddCorner(button, 8)
         Stroke(button, background == CurrentTheme().Accent and CurrentTheme().Accent2 or COLORS.Border,1)
         local image = Icon(button, iconName, 15, UDim2.fromOffset(10,10), 2009)
         if image then
@@ -1797,7 +1797,7 @@ local function MakeKeySystem(config)
             Visible = false,
             ZIndex = 2020,
         })
-        AddCorner(urlDropdown,0)
+        AddCorner(urlDropdown, 10)
         Stroke(urlDropdown, COLORS.Border,1)
         for i, item in ipairs(urls) do
             local row = New("TextButton", {
@@ -1813,7 +1813,7 @@ local function MakeKeySystem(config)
                 Font = Enum.Font.GothamMedium,
                 ZIndex = 2021,
             })
-            AddCorner(row,0)
+            AddCorner(row, 7)
             row.MouseButton1Click:Connect(function()
                 copyURL(item)
                 closeURLDropdown()
@@ -2844,7 +2844,7 @@ function DarkyUIGen2:CreateWindow(config)
                 BorderSizePixel = 0,
                 ZIndex = 23,
             })
-            AddCorner(badge, 0)
+            AddCorner(badge, 6)
             Stroke(badge, color, 1)
 
             local hasIcon = iconName ~= nil and iconName ~= ""
