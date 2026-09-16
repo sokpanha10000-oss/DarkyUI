@@ -1,5 +1,5 @@
--- DarkyUI v1.5.3 | Rework Mode + Transparency + HSV ColorPicker Fix
--- v1.5.3 proof fixes: ColorPicker only closes from its X button, popup dragging cannot move the main window, and the hue spectrum renders a full visible rainbow.
+-- DarkyUI v1.6 | Rework Mode + HSV ColorPicker + Tags + KeySystem Rework
+-- v1.6 rework: dual square Tags, thumbnail-free centered KeySystem, draggable KeySystem mode, multi-URL Get Key chooser, and HSV ColorPicker refinements.
 -- Design reference: file_00000000873c81fabe5fe0b2b93734d0.png
 -- This uploaded image is the visual reference for the DarkyUI main UI style.
 --
@@ -1505,40 +1505,45 @@ local function MakeKeySystem(config)
         Cancelled = false,
     }
 
-    local title = tostring(
-        config.Title or "Access Required"
-    )
+    local title = tostring(config.Title or "Access Required")
+    local note = tostring(config.Note or "")
+    local saveKey = config.SaveKey == true
+    local multi = config.Multi == true
+    local draggable = config.Draggable == true
 
-    local note = tostring(
-        config.Note or ""
-    )
-
-    local keyURL = tostring(
-        config.URL or ""
-    )
-
-    local saveKey =
-        config.SaveKey == true
-
-    -- Thumbnail accepts either the documented table shape
-    -- ({ Image = "rbxassetid://...", Title = "..." }) or a bare
-    -- image value (rbxassetid string/number, rbxasset://, or
-    -- http(s) URL) passed directly as config.Thumbnail, so a plain
-    -- id doesn't silently fail to show.
-    local thumbnail = config.Thumbnail or {}
-
-    if typeof(thumbnail) == "string"
-        or typeof(thumbnail) == "number" then
-        thumbnail = { Image = thumbnail }
+    local function collectURLs(value)
+        local urls = {}
+        if typeof(value) == "string" and value ~= "" then
+            table.insert(urls, {Name = "URL", Value = value})
+        elseif type(value) == "table" then
+            local keyed = {}
+            local array = {}
+            for k, v in pairs(value) do
+                if typeof(v) == "string" and v ~= "" then
+                    local name = tostring(k)
+                    local n = tonumber(name:match("^URL(%d*)$") or "")
+                    if name == "URL" then
+                        n = 1
+                    end
+                    if n then
+                        table.insert(keyed, {Name = name, Value = v, Order = n})
+                    else
+                        table.insert(array, {Name = name, Value = v, Order = 100000 + #array + 1})
+                    end
+                end
+            end
+            table.sort(keyed, function(a,b) return a.Order < b.Order end)
+            table.sort(array, function(a,b) return a.Order < b.Order end)
+            for _, item in ipairs(keyed) do table.insert(urls, item) end
+            for _, item in ipairs(array) do table.insert(urls, item) end
+        end
+        return urls
     end
 
-    -- Border/Blur: connect to the Window's settings.
-    -- Explicit config.Border/config.Blur always win. Otherwise, if a
-    -- Window already exists (KeySystem created AFTER CreateWindow),
-    -- inherit its Border/Blur so both stay visually consistent.
-    -- Falls back to false, same default as Window.
-    local existingWindow =
-        DarkyUIGen2._Window
+    local urls = collectURLs(config.URL)
+    local keyURL = (#urls > 0 and urls[1].Value or "")
+
+    local existingWindow = DarkyUIGen2._Window
         and not DarkyUIGen2._Window.Destroyed
         and DarkyUIGen2._Window
         or nil
@@ -1563,71 +1568,51 @@ local function MakeKeySystem(config)
 
     KeySystem.Border = useBorder
     KeySystem.Blur = useBlur
+    KeySystem.Draggable = draggable
+    KeySystem.Multi = multi
+    KeySystem.URLs = urls
 
-    local fileName =
-        "DarkyUIGen2_Key.txt"
+    local fileName = "DarkyUIGen2_Key.txt"
+    local oldGui = CoreGui:FindFirstChild(KEY_GUI_NAME)
+    if oldGui then oldGui:Destroy() end
 
-    -- Create the KeySystem first and keep it independent from the hub GUI.
-    local oldGui = CoreGui:FindFirstChild(
-        KEY_GUI_NAME
-    )
-
-    if oldGui then
-        oldGui:Destroy()
-    end
-
-    local gui = New(
-        "ScreenGui",
-        {
-            Name = KEY_GUI_NAME,
-            Parent = CoreGui,
-            IgnoreGuiInset = true,
-            ResetOnSpawn = false,
-            ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
-            DisplayOrder = 3000000,
-        }
-    )
-
+    local gui = New("ScreenGui", {
+        Name = KEY_GUI_NAME,
+        Parent = CoreGui,
+        IgnoreGuiInset = true,
+        ResetOnSpawn = false,
+        ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+        DisplayOrder = 3000000,
+    })
     KeySystem.Gui = gui
 
-    local overlay = New(
-        "Frame",
-        {
-            Parent = gui,
-            Size = UDim2.fromScale(1, 1),
-            BackgroundColor3 = COLORS.Black,
-            BackgroundTransparency = 0.35,
-            BorderSizePixel = 0,
-            ZIndex = 2000,
-        }
-    )
+    local overlay = New("Frame", {
+        Parent = gui,
+        Size = UDim2.fromScale(1,1),
+        BackgroundColor3 = COLORS.Black,
+        BackgroundTransparency = 0.35,
+        BorderSizePixel = 0,
+        ZIndex = 2000,
+    })
 
-    local main = New(
-        "Frame",
-        {
-            Parent = overlay,
-            Name = "Main",
-            AnchorPoint = Vector2.new(0.5, 0.5),
-            Position = UDim2.fromScale(0.5, 0.5),
-            Size = UDim2.fromOffset(500, 280),
-            BackgroundColor3 = COLORS.Background,
-            BorderSizePixel = 0,
-            ZIndex = 2001,
-        }
-    )
-
-    AddCorner(main, 12)
-    local keyStroke = Stroke(
-        main,
-        KeySystem.Border and CurrentTheme().Accent or COLORS.Border,
-        1
-    )
+    local main = New("Frame", {
+        Parent = overlay,
+        Name = "Main",
+        AnchorPoint = Vector2.new(0.5,0.5),
+        Position = UDim2.fromScale(0.5,0.5),
+        Size = UDim2.fromOffset(500, 270),
+        BackgroundColor3 = COLORS.Background,
+        BorderSizePixel = 0,
+        ZIndex = 2001,
+    })
+    AddCorner(main, 0)
+    local keyStroke = Stroke(main, KeySystem.Border and CurrentTheme().Accent or COLORS.Border, 1)
     keyStroke.Transparency = KeySystem.Border and 0 or 1
 
     local keyAura
     if KeySystem.Blur then
         keyAura = CreateAuraFor(gui, main, function() return CurrentTheme().Accent end, {
-            Name = "KeyAura", Expand = 16, Radius = 12, Layers = 5, Thickness = 4, Transparency = 0.80
+            Name = "KeyAura", Expand = 16, Radius = 4, Layers = 5, Thickness = 4, Transparency = 0.80
         })
     end
     KeySystem.Aura = keyAura
@@ -1639,499 +1624,291 @@ local function MakeKeySystem(config)
         end
         if keyAura and keyAura.Root and keyAura.Root.Parent then keyAura:SetColor(colors.Accent) end
     end)
-    -- HEADER
-    local header = New(
-        "Frame",
-        {
-            Parent = main,
-            Position = UDim2.fromOffset(1, 1),
-            Size = UDim2.new(1, -2, 0, 55),
-            BackgroundColor3 = COLORS.Background2,
-            BorderSizePixel = 0,
-            ZIndex = 2002,
-        }
-    )
 
-    AddCorner(header, 11)
-
-    New(
-        "Frame",
-        {
-            Parent = header,
-            Name = "CornerMask",
-            Position = UDim2.new(0, 0, 1, -11),
-            Size = UDim2.new(1, 0, 0, 11),
-            BackgroundColor3 = COLORS.Background2,
-            BorderSizePixel = 0,
-            ZIndex = 2002,
-        }
-    )
-
+    local header = New("Frame", {
+        Parent = main,
+        Position = UDim2.fromOffset(1,1),
+        Size = UDim2.new(1,-2,0,90),
+        BackgroundColor3 = COLORS.Background2,
+        BorderSizePixel = 0,
+        ZIndex = 2002,
+    })
+    AddCorner(header, 0)
     Stroke(header, COLORS.Border, 1)
 
-    New(
-        "TextLabel",
-        {
-            Parent = header,
-            BackgroundTransparency = 1,
-            Position = UDim2.fromOffset(15, 7),
-            Size = UDim2.new(1, -30, 0, 22),
-            Text = title,
-            TextColor3 = COLORS.Text,
-            TextSize = 15,
-            Font = Enum.Font.GothamBold,
-            TextXAlignment = Enum.TextXAlignment.Left,
-            ZIndex = 2003,
-        }
-    )
+    New("TextLabel", {
+        Parent = header,
+        BackgroundTransparency = 1,
+        Position = UDim2.fromOffset(18,18),
+        Size = UDim2.new(1,-36,0,28),
+        Text = title,
+        TextColor3 = COLORS.Text,
+        TextSize = 18,
+        Font = Enum.Font.GothamBold,
+        TextXAlignment = Enum.TextXAlignment.Center,
+        ZIndex = 2003,
+    })
 
-    New(
-        "TextLabel",
-        {
-            Parent = header,
-            BackgroundTransparency = 1,
-            Position = UDim2.fromOffset(15, 30),
-            Size = UDim2.new(1, -30, 0, 17),
-            Text = note,
-            TextColor3 = COLORS.SubText,
-            TextSize = 9,
-            Font = Enum.Font.Gotham,
-            TextXAlignment = Enum.TextXAlignment.Left,
-            TextTruncate = Enum.TextTruncate.AtEnd,
-            ZIndex = 2003,
-        }
-    )
-    -- LEFT THUMBNAIL
-    local left = New(
-        "Frame",
-        {
-            Parent = main,
-            Position = UDim2.fromOffset(13, 68),
-            Size = UDim2.fromOffset(150, 132),
-            BackgroundColor3 = COLORS.Panel,
-            BorderSizePixel = 0,
-            ZIndex = 2003,
-        }
-    )
+    New("TextLabel", {
+        Parent = header,
+        BackgroundTransparency = 1,
+        Position = UDim2.fromOffset(24,50),
+        Size = UDim2.new(1,-48,0,26),
+        Text = note,
+        TextColor3 = COLORS.SubText,
+        TextSize = 10,
+        Font = Enum.Font.Gotham,
+        TextXAlignment = Enum.TextXAlignment.Center,
+        TextWrapped = true,
+        ZIndex = 2003,
+    })
 
-    Stroke(left, COLORS.Border, 1)
-
-    local thumbAsset =
-        thumbnail.Image
-            and AssetId(thumbnail.Image)
-
-    if thumbAsset then
-        local image = New(
-            "ImageLabel",
-            {
-                Parent = left,
-                Position = UDim2.fromOffset(7, 7),
-                Size = UDim2.new(1, -14, 0, 92),
-                BackgroundColor3 = COLORS.Panel2,
-                BorderSizePixel = 0,
-                Image = thumbAsset,
-                ScaleType = Enum.ScaleType.Crop,
-                ZIndex = 2004,
-            }
-        )
-
-        Stroke(image, COLORS.Border, 1)
-    else
-        if TabSection.Icon then
-            Icon(
-                header,
-                TabSection.Icon,
-                13,
-                UDim2.fromOffset(4, 6),
-                16
-            )
-        end
-
-        New(
-            "TextLabel",
-            {
-                Parent = left,
-                Position = UDim2.fromOffset(7, 7),
-                Size = UDim2.new(1, -14, 0, 92),
-                BackgroundColor3 = COLORS.Panel2,
-                BorderSizePixel = 0,
-                Text = "KEY",
-                TextColor3 = COLORS.Muted,
-                TextSize = 20,
-                Font = Enum.Font.GothamBold,
-                ZIndex = 2004,
-            }
-        )
-    end
-
-    New(
-        "TextLabel",
-        {
-            Parent = left,
-            BackgroundTransparency = 1,
-            Position = UDim2.fromOffset(7, 105),
-            Size = UDim2.new(1, -14, 0, 20),
-            Text = tostring(
-                thumbnail.Title
-                    or "Premium Member"
-            ),
-            TextColor3 = COLORS.Text,
-            TextSize = 10,
-            Font = Enum.Font.GothamBold,
-            TextXAlignment = Enum.TextXAlignment.Center,
-            TextTruncate = Enum.TextTruncate.AtEnd,
-            ZIndex = 2005,
-        }
-    )
-    -- RIGHT INPUT AREA
-    local right = New(
-        "Frame",
-        {
-            Parent = main,
-            Position = UDim2.fromOffset(174, 68),
-            Size = UDim2.new(1, -187, 0, 132),
-            BackgroundColor3 = COLORS.Panel,
-            BorderSizePixel = 0,
-            ZIndex = 2003,
-        }
-    )
-
+    local right = New("Frame", {
+        Parent = main,
+        Position = UDim2.fromOffset(18,104),
+        Size = UDim2.new(1,-36,0,92),
+        BackgroundColor3 = COLORS.Panel,
+        BorderSizePixel = 0,
+        ZIndex = 2003,
+    })
+    AddCorner(right, 0)
     Stroke(right, COLORS.Border, 1)
 
-    New(
-        "TextLabel",
-        {
-            Parent = right,
-            BackgroundTransparency = 1,
-            Position = UDim2.fromOffset(11, 10),
-            Size = UDim2.new(1, -22, 0, 20),
-            Text = "Enter your access key",
-            TextColor3 = COLORS.Text,
-            TextSize = 11,
-            Font = Enum.Font.GothamBold,
-            TextXAlignment = Enum.TextXAlignment.Left,
-            ZIndex = 2004,
-        }
-    )
+    New("TextLabel", {
+        Parent = right,
+        BackgroundTransparency = 1,
+        Position = UDim2.fromOffset(12,10),
+        Size = UDim2.new(1,-24,0,18),
+        Text = "Enter your access key",
+        TextColor3 = COLORS.Text,
+        TextSize = 11,
+        Font = Enum.Font.GothamBold,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        ZIndex = 2004,
+    })
 
-    New(
-        "TextLabel",
-        {
-            Parent = right,
-            BackgroundTransparency = 1,
-            Position = UDim2.fromOffset(11, 31),
-            Size = UDim2.new(1, -22, 0, 17),
-            Text = "Paste your key below to continue.",
-            TextColor3 = COLORS.SubText,
-            TextSize = 9,
-            Font = Enum.Font.Gotham,
-            TextXAlignment = Enum.TextXAlignment.Left,
-            ZIndex = 2004,
-        }
-    )
-
-    local inputFrame = New(
-        "Frame",
-        {
-            Parent = right,
-            Position = UDim2.fromOffset(10, 58),
-            Size = UDim2.new(1, -20, 0, 38),
-            BackgroundColor3 = COLORS.Panel2,
-            BorderSizePixel = 0,
-            ZIndex = 2005,
-        }
-    )
-
+    local inputFrame = New("Frame", {
+        Parent = right,
+        Position = UDim2.fromOffset(10,39),
+        Size = UDim2.new(1,-20,0,40),
+        BackgroundColor3 = COLORS.Panel2,
+        BorderSizePixel = 0,
+        ZIndex = 2005,
+    })
+    AddCorner(inputFrame, 0)
     Stroke(inputFrame, COLORS.Border, 1)
 
-    local inputIcon = Icon(
-        inputFrame,
-        "key-round",
-        16,
-        UDim2.fromOffset(10, 11),
-        2006
-    )
+    local inputIcon = Icon(inputFrame, "key-round", 16, UDim2.fromOffset(10,12), 2006)
+    if inputIcon then inputIcon.ImageColor3 = CurrentTheme().Accent2 end
 
-    if not inputIcon then
-        New(
-            "TextLabel",
-            {
-                Parent = inputFrame,
-                BackgroundTransparency = 1,
-                Position = UDim2.fromOffset(10, 0),
-                Size = UDim2.fromOffset(20, 38),
-                Text = "🔑",
-                TextSize = 13,
-                TextColor3 = CurrentTheme().Accent2,
-                Font = Enum.Font.GothamBold,
-                ZIndex = 2006,
-            }
-        )
-    end
+    local keyInput = New("TextBox", {
+        Parent = inputFrame,
+        BackgroundTransparency = 1,
+        Position = UDim2.fromOffset(38,0),
+        Size = UDim2.new(1,-48,1,0),
+        PlaceholderText = "Enter key...",
+        PlaceholderColor3 = COLORS.Muted,
+        Text = "",
+        TextColor3 = COLORS.Text,
+        TextSize = 10,
+        Font = Enum.Font.Gotham,
+        ClearTextOnFocus = false,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        ZIndex = 2006,
+    })
 
-    local keyInput = New(
-        "TextBox",
-        {
-            Parent = inputFrame,
-            BackgroundTransparency = 1,
-            Position = UDim2.fromOffset(34, 0),
-            Size = UDim2.new(1, -42, 1, 0),
-            PlaceholderText = "Enter key...",
-            PlaceholderColor3 = COLORS.Muted,
-            Text = "",
-            TextColor3 = COLORS.Text,
-            TextSize = 10,
-            Font = Enum.Font.Gotham,
-            ClearTextOnFocus = false,
-            TextXAlignment = Enum.TextXAlignment.Left,
-            ZIndex = 2006,
-        }
-    )
+    local status = New("TextLabel", {
+        Parent = main,
+        BackgroundTransparency = 1,
+        Position = UDim2.fromOffset(18,200),
+        Size = UDim2.new(1,-36,0,16),
+        Text = "",
+        TextColor3 = COLORS.SubText,
+        TextSize = 9,
+        Font = Enum.Font.Gotham,
+        TextXAlignment = Enum.TextXAlignment.Center,
+        ZIndex = 2007,
+    })
 
-    local status = New(
-        "TextLabel",
-        {
+    local function KeyButton(x, width, text, iconName, background)
+        local button = New("TextButton", {
             Parent = main,
-            BackgroundTransparency = 1,
-            Position = UDim2.fromOffset(13, 240),
-            Size = UDim2.new(1, -26, 0, 18),
+            Position = UDim2.fromOffset(x,223),
+            Size = UDim2.fromOffset(width,34),
+            BackgroundColor3 = background,
+            BorderSizePixel = 0,
+            AutoButtonColor = false,
             Text = "",
-            TextColor3 = COLORS.SubText,
-            TextSize = 9,
-            Font = Enum.Font.Gotham,
-            TextXAlignment = Enum.TextXAlignment.Center,
-            ZIndex = 2007,
-        }
-    )
-    -- BOTTOM BUTTONS
-    local function KeyButton(x, text, iconName, background)
-        local button = New(
-            "TextButton",
-            {
-                Parent = main,
-                Position = UDim2.fromOffset(x, 210),
-                Size = UDim2.fromOffset(108, 38),
-                BackgroundColor3 = background,
-                BorderSizePixel = 0,
-                AutoButtonColor = false,
-                Text = "",
-                ZIndex = 2008,
-            }
-        )
-
-        Stroke(
-            button,
-            background == CurrentTheme().Accent
-                and CurrentTheme().Accent2
-                or COLORS.Border,
-            1
-        )
-
-        local image = Icon(
-            button,
-            iconName,
-            16,
-            UDim2.fromOffset(12, 11),
-            2009
-        )
-
-        if iconName == "x" and image then
-            image.ImageColor3 = COLORS.Danger
-        elseif image then
-            image.ImageColor3 =
-                background == CurrentTheme().Accent
-                and COLORS.White
-                or COLORS.Text
+            ZIndex = 2008,
+        })
+        AddCorner(button,0)
+        Stroke(button, background == CurrentTheme().Accent and CurrentTheme().Accent2 or COLORS.Border,1)
+        local image = Icon(button, iconName, 15, UDim2.fromOffset(10,10), 2009)
+        if image then
+            image.ImageColor3 = (iconName == "x") and COLORS.Danger or (background == CurrentTheme().Accent and COLORS.White or COLORS.Text)
         end
-
-        New(
-            "TextLabel",
-            {
-                Parent = button,
-                BackgroundTransparency = 1,
-                Position = UDim2.fromOffset(36, 0),
-                Size = UDim2.new(1, -41, 1, 0),
-                Text = text,
-                TextColor3 =
-                    background == CurrentTheme().Accent
-                    and COLORS.White
-                    or COLORS.Text,
-                TextSize = 10,
-                Font = Enum.Font.GothamMedium,
-                TextXAlignment = Enum.TextXAlignment.Left,
-                ZIndex = 2009,
-            }
-        )
-
+        New("TextLabel", {
+            Parent = button,
+            BackgroundTransparency = 1,
+            Position = UDim2.fromOffset(32,0),
+            Size = UDim2.new(1,-38,1,0),
+            Text = text,
+            TextColor3 = background == CurrentTheme().Accent and COLORS.White or COLORS.Text,
+            TextSize = 10,
+            Font = Enum.Font.GothamMedium,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            ZIndex = 2009,
+        })
         return button
     end
 
-    local cancelButton = KeyButton(
-        13,
-        "Cancel",
-        "x",
-        COLORS.Panel
-    )
+    local cancelButton = KeyButton(18, 120, "Cancel", "x", COLORS.Panel)
+    local getKeyButton = KeyButton(190, 120, "Get Key", "key", COLORS.Panel)
+    local submitButton = KeyButton(362, 120, "Submit", "arrow-right", CurrentTheme().Accent)
 
-    local getKeyButton = KeyButton(
-        195,
-        "Get Key",
-        "key",
-        COLORS.Panel
-    )
+    local urlDropdown
+    local urlOpen = false
 
-    local submitButton = KeyButton(
-        379,
-        "Submit",
-        "arrow-right",
-        CurrentTheme().Accent
-    )
-
-    -- Only the accent of the KeySystem changes with the theme.
-    RegisterTheme(function(_, colors)
-        if not main.Parent then
+    local function copyURL(item)
+        keyURL = item and item.Value or ""
+        if keyURL == "" then
+            status.Text = "No key URL configured."
+            status.TextColor3 = COLORS.Danger
             return
         end
+        local copied = SafeClipboard(keyURL)
+        status.Text = copied and ("Copied " .. tostring(item.Name) .. " to clipboard.") or keyURL
+        status.TextColor3 = copied and CurrentTheme().Accent2 or COLORS.SubText
+    end
 
+    local function closeURLDropdown()
+        urlOpen = false
+        if urlDropdown then urlDropdown.Visible = false end
+    end
+
+    local function buildURLDropdown()
+        if urlDropdown then urlDropdown:Destroy() end
+        urlDropdown = New("Frame", {
+            Parent = main,
+            Position = UDim2.fromOffset(190, 258),
+            Size = UDim2.fromOffset(250, math.min(34 * math.max(#urls,1), 140)),
+            BackgroundColor3 = COLORS.Panel,
+            BorderSizePixel = 0,
+            Visible = false,
+            ZIndex = 2020,
+        })
+        AddCorner(urlDropdown,0)
+        Stroke(urlDropdown, COLORS.Border,1)
+        for i, item in ipairs(urls) do
+            local row = New("TextButton", {
+                Parent = urlDropdown,
+                Position = UDim2.fromOffset(1, (i-1)*34+1),
+                Size = UDim2.new(1,-2,0,32),
+                BackgroundColor3 = COLORS.Panel2,
+                BorderSizePixel = 0,
+                AutoButtonColor = false,
+                Text = item.Name,
+                TextColor3 = COLORS.Text,
+                TextSize = 10,
+                Font = Enum.Font.GothamMedium,
+                ZIndex = 2021,
+            })
+            AddCorner(row,0)
+            row.MouseButton1Click:Connect(function()
+                copyURL(item)
+                closeURLDropdown()
+            end)
+        end
+    end
+
+    local function openURLChooser()
+        if #urls == 0 then
+            status.Text = "Key URL is not configured."
+            status.TextColor3 = COLORS.Danger
+            return
+        end
+        if not multi or #urls <= 1 then
+            copyURL(urls[1])
+            return
+        end
+        buildURLDropdown()
+        urlOpen = not urlOpen
+        urlDropdown.Visible = urlOpen
+    end
+
+    getKeyButton.MouseButton1Click:Connect(openURLChooser)
+
+    RegisterTheme(function(_, colors)
+        if not main.Parent then return end
         submitButton.BackgroundColor3 = colors.Accent
-
         local stroke = submitButton:FindFirstChildOfClass("UIStroke")
-        if stroke then
-            stroke.Color = colors.Accent2
-        end
-
-        for _, child in ipairs(submitButton:GetChildren()) do
-            if child:IsA("TextLabel") then
-                child.TextColor3 = COLORS.White
-            elseif child:IsA("ImageLabel") then
-                child.ImageColor3 = COLORS.White
-            end
-        end
-
+        if stroke then stroke.Color = colors.Accent2 end
         local keyIcon = inputFrame:FindFirstChildOfClass("ImageLabel")
-        if keyIcon then
-            keyIcon.ImageColor3 = colors.Accent2
-        end
-
-        status.TextColor3 = COLORS.SubText
+        if keyIcon then keyIcon.ImageColor3 = colors.Accent2 end
     end)
 
-    AddCorner(left, 10)
-    AddCorner(right, 10)
-    AddCorner(inputFrame, 8)
-    AddCorner(cancelButton, 9)
-    AddCorner(getKeyButton, 9)
-    AddCorner(submitButton, 9)
-    -- VALIDATION / SAVE
+    local dragStart, startPos, dragging = nil, nil, false
+    if draggable then
+        header.Active = true
+        header.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                dragging = true
+                dragStart = input.Position
+                startPos = main.Position
+            end
+        end)
+        header.InputEnded:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                dragging = false
+            end
+        end)
+        UserInputService.InputChanged:Connect(function(input)
+            if not dragging then return end
+            if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+                local delta = input.Position - dragStart
+                main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+            end
+        end)
+    end
+
     local function Validate(key)
-        if typeof(config.KeyValidator) ~= "function" then
-            return false
-        end
-
-        local success, result = pcall(
-            config.KeyValidator,
-            key
-        )
-
+        if typeof(config.KeyValidator) ~= "function" then return false end
+        local success, result = pcall(config.KeyValidator, key)
         return success and result == true
     end
 
     local function SaveKey(key)
-        if not saveKey then
-            return
-        end
-
-        if typeof(writefile) ~= "function" then
-            return
-        end
-
-        pcall(function()
-            writefile(fileName, key)
-        end)
+        if not saveKey or typeof(writefile) ~= "function" then return end
+        pcall(function() writefile(fileName, key) end)
     end
 
     local function ReadKey()
-        if not saveKey then
-            return nil
-        end
-
-        if typeof(isfile) ~= "function"
-            or typeof(readfile) ~= "function" then
-            return nil
-        end
-
+        if not saveKey or typeof(isfile) ~= "function" or typeof(readfile) ~= "function" then return nil end
         local exists = false
-
-        pcall(function()
-            exists = isfile(fileName)
-        end)
-
-        if not exists then
-            return nil
-        end
-
+        pcall(function() exists = isfile(fileName) end)
+        if not exists then return nil end
         local key
-
-        pcall(function()
-            key = readfile(fileName)
-        end)
-
-        if key and key ~= "" then
-            return key
-        end
-
-        return nil
+        pcall(function() key = readfile(fileName) end)
+        return (key and key ~= "") and key or nil
     end
 
     local function Finish()
-        if KeySystem.Destroyed then
-            return
-        end
-
+        if KeySystem.Destroyed then return end
         KeySystem.Destroyed = true
         DarkyUIGen2._KeyPassed = true
-
-        local tween = Tween(
-            main,
-            MED,
-            {
-                Size = UDim2.fromOffset(500, 0)
-            }
-        )
-
+        local tween = Tween(main, MED, {Size = UDim2.fromOffset(500, 0)})
         if tween then
             tween.Completed:Connect(function()
-                if gui then
-                    gui:Destroy()
-                end
-
-                -- Reveal a hub created immediately after CreateKeySystem.
-                if DarkyUIGen2._Window
-                    and not DarkyUIGen2._Window.Destroyed
-                    and DarkyUIGen2._Window._KeyLocked then
-
+                if gui then gui:Destroy() end
+                if DarkyUIGen2._Window and not DarkyUIGen2._Window.Destroyed and DarkyUIGen2._Window._KeyLocked then
                     DarkyUIGen2._Window._KeyLocked = false
                     DarkyUIGen2._Window.Main.Visible = true
-
-                    DarkyUIGen2._Window.Main.Size =
-                        UDim2.fromOffset(550, 0)
-
-                    Tween(
-                        DarkyUIGen2._Window.Main,
-                        MED,
-                        {
-                            Size = UDim2.fromOffset(
-                                WINDOW_WIDTH,
-                                WINDOW_HEIGHT
-                            )
-                        }
-                    )
+                    DarkyUIGen2._Window.Main.Size = UDim2.fromOffset(550, 0)
+                    Tween(DarkyUIGen2._Window.Main, MED, {Size = UDim2.fromOffset(WINDOW_WIDTH, WINDOW_HEIGHT)})
                 end
             end)
-        else
-            if gui then
-                gui:Destroy()
-            end
+        elseif gui then
+            gui:Destroy()
         end
     end
 
@@ -2139,124 +1916,54 @@ local function MakeKeySystem(config)
         KeySystem.Cancelled = true
         KeySystem.Destroyed = true
         DarkyUIGen2._KeyPassed = false
-
-        if gui then
-            gui:Destroy()
-        end
-    end)
-
-    getKeyButton.MouseButton1Click:Connect(function()
-        if keyURL == "" then
-            status.Text = "Key URL is not configured."
-            status.TextColor3 = COLORS.Danger
-            return
-        end
-
-        local copied = SafeClipboard(keyURL)
-
-        if copied then
-            status.Text = "Key URL copied to clipboard."
-            status.TextColor3 = CurrentTheme().Accent2
-        else
-            -- Still show URL when clipboard APIs are unavailable.
-            status.Text = keyURL
-            status.TextColor3 = COLORS.SubText
-        end
+        if gui then gui:Destroy() end
     end)
 
     local submitting = false
-
     local function SubmitKey()
-        if submitting then
-            return
-        end
-
+        if submitting then return end
         submitting = true
-
         local key = keyInput.Text
-
         if key == "" then
             status.Text = "Please enter a key."
             status.TextColor3 = COLORS.Warning
             submitting = false
             return
         end
-
         status.Text = "Checking key..."
         status.TextColor3 = COLORS.SubText
-
         if Validate(key) then
             status.Text = "Key accepted!"
             status.TextColor3 = CurrentTheme().Accent2
-
             SaveKey(key)
-
             task.delay(0.25, Finish)
         else
             status.Text = "Invalid key."
             status.TextColor3 = COLORS.Danger
         end
-
         submitting = false
     end
+    submitButton.MouseButton1Click:Connect(SubmitKey)
+    keyInput.FocusLost:Connect(function(enterPressed) if enterPressed then SubmitKey() end end)
 
-    submitButton.MouseButton1Click:Connect(
-        SubmitKey
-    )
-
-    keyInput.FocusLost:Connect(
-        function(enterPressed)
-            if enterPressed then
-                SubmitKey()
-            end
-        end
-    )
-    -- SAVED KEY
     local saved = ReadKey()
-
     if saved and Validate(saved) then
         keyInput.Text = saved
         Finish()
     else
-        main.Size = UDim2.fromOffset(500, 0)
-
-        Tween(
-            main,
-            MED,
-            {
-                Size = UDim2.fromOffset(500, 280)
-            }
-        )
+        main.Size = UDim2.fromOffset(500,0)
+        Tween(main, MED, {Size = UDim2.fromOffset(500,270)})
     end
 
-    function KeySystem:GetKey()
-        return keyInput.Text
-    end
-
-    function KeySystem:SetKey(value)
-        keyInput.Text = tostring(value or "")
-    end
-
-    function KeySystem:Submit()
-        SubmitKey()
-    end
-
+    function KeySystem:GetKey() return keyInput.Text end
+    function KeySystem:SetKey(value) keyInput.Text = tostring(value or "") end
+    function KeySystem:Submit() SubmitKey() end
     function KeySystem:Destroy()
-        if KeySystem.Destroyed then
-            return
-        end
-
+        if KeySystem.Destroyed then return end
         KeySystem.Destroyed = true
-
-        if gui then
-            gui:Destroy()
-        end
+        if gui then gui:Destroy() end
     end
-
-    function KeySystem:IsDestroyed()
-        return KeySystem.Destroyed == true
-    end
-
+    function KeySystem:IsDestroyed() return KeySystem.Destroyed == true end
     return KeySystem
 end
 
@@ -3105,113 +2812,88 @@ function DarkyUIGen2:CreateWindow(config)
             ZIndex = 22,
         }
     )
-    -- TAG (small colored badge next to the window title)
-    -- Window:Tag({ Title = "Featured", Icon = "star", Color = ... })
-    -- Also callable as Tab:Tag(...) on any tab (see below) since
-    -- that's how it reads most naturally when scripting, but it's
-    -- really one badge for the whole window, shown once next to the
-    -- title - not a per-tab thing.
+    -- TAGS (two square-corner badges: title + subtitle)
+    local tagHolder = New("Frame", {
+        Parent = top,
+        BackgroundTransparency = 1,
+        Size = UDim2.fromOffset(1, 20),
+        Visible = false,
+        ZIndex = 23,
+    })
 
-    local tagHolder = New(
-        "Frame",
-        {
-            Parent = top,
-            BackgroundTransparency = 1,
-            Size = UDim2.fromOffset(1, 18),
-            Visible = false,
-            ZIndex = 23,
-        }
-    )
-
-    function Window:Tag(tagConfig)
+    function Window:CreateTag(tagConfig)
         tagConfig = tagConfig or {}
+        for _, child in ipairs(tagHolder:GetChildren()) do child:Destroy() end
 
         local tagTitle = tostring(tagConfig.Title or "Tag")
-        local tagColor = typeof(tagConfig.Color) == "Color3"
-            and tagConfig.Color
-            or CurrentTheme().Accent
+        local subtitle = tostring(tagConfig.Subtitle or "")
+        local titleColor = typeof(tagConfig.TitleColor) == "Color3" and tagConfig.TitleColor or CurrentTheme().Accent
+        local subtitleColor = typeof(tagConfig.SubtitleColor) == "Color3" and tagConfig.SubtitleColor or CurrentTheme().Accent2
 
-        for _, child in ipairs(tagHolder:GetChildren()) do
-            child:Destroy()
-        end
+        local titleWidth = math.max(56, math.min(150, 30 + (#tagTitle * 6)))
+        local subtitleWidth = subtitle ~= "" and math.max(56, math.min(150, 30 + (#subtitle * 6))) or 0
+        local gap = subtitle ~= "" and 4 or 0
+        local totalWidth = titleWidth + subtitleWidth + gap
 
-        local hasIcon = tagConfig.Icon ~= nil
-            and tagConfig.Icon ~= ""
-
-        local textStartX = hasIcon and 22 or 8
-
-        local pill = New(
-            "Frame",
-            {
+        local function makeBadge(width, text, color, iconName)
+            local badge = New("Frame", {
                 Parent = tagHolder,
-                Size = UDim2.fromOffset(1, 18),
-                BackgroundColor3 = tagColor,
+                BackgroundColor3 = color,
                 BackgroundTransparency = 0.78,
+                Size = UDim2.fromOffset(width, 20),
                 BorderSizePixel = 0,
                 ZIndex = 23,
-            }
-        )
+            })
+            AddCorner(badge, 0)
+            Stroke(badge, color, 1)
 
-        AddCorner(pill, 6)
-
-        Stroke(pill, tagColor, 1)
-
-        if hasIcon then
-            local iconHolderTag = New(
-                "Frame",
-                {
-                    Parent = pill,
-                    Position = UDim2.fromOffset(5, 2),
-                    Size = UDim2.fromOffset(14, 14),
-                    BackgroundTransparency = 1,
-                    ZIndex = 24,
-                }
-            )
-
-            local tagIconObject = Icon(
-                iconHolderTag,
-                tagConfig.Icon,
-                12,
-                UDim2.fromOffset(1, 1),
-                24
-            )
-
-            if tagIconObject then
-                tagIconObject.ImageColor3 = tagColor
+            local hasIcon = iconName ~= nil and iconName ~= ""
+            local textX = hasIcon and 22 or 8
+            if hasIcon then
+                local iconObject = Icon(badge, iconName, 12, UDim2.fromOffset(6,4), 24)
+                if iconObject then iconObject.ImageColor3 = color end
             end
-        end
-
-        local tagLabel = New(
-            "TextLabel",
-            {
-                Parent = pill,
-                Position = UDim2.fromOffset(textStartX, 0),
-                Size = UDim2.fromOffset(86, 18),
+            New("TextLabel", {
+                Parent = badge,
                 BackgroundTransparency = 1,
-                Text = tagTitle,
-                TextColor3 = tagColor,
+                Position = UDim2.fromOffset(textX,0),
+                Size = UDim2.new(1,-textX-6,1,0),
+                Text = text,
+                TextColor3 = color,
                 TextSize = 9,
                 Font = Enum.Font.GothamBold,
                 TextXAlignment = Enum.TextXAlignment.Left,
                 TextTruncate = Enum.TextTruncate.AtEnd,
                 ZIndex = 24,
-            }
-        )
+            })
+            return badge
+        end
 
-        -- Medium fixed badge width keeps long tag text from stretching
-        -- the title bar. The label truncates cleanly inside the badge.
-        local mediumTagWidth = hasIcon and 112 or 100
-        pill.Size = UDim2.fromOffset(mediumTagWidth, 18)
-        tagHolder.Size = UDim2.fromOffset(mediumTagWidth, 18)
+        local x = 58 + titleLabel.TextBounds.X + 8
+        local titleBadge = makeBadge(titleWidth, tagTitle, titleColor, tagConfig.TitleIcon)
+        titleBadge.Position = UDim2.fromOffset(0,0)
 
-        tagHolder.Position = UDim2.fromOffset(
-            58 + titleLabel.TextBounds.X + 8,
-            8
-        )
+        if subtitle ~= "" then
+            local subtitleBadge = makeBadge(subtitleWidth, subtitle, subtitleColor, tagConfig.SubtitleIcon)
+            subtitleBadge.Position = UDim2.fromOffset(titleWidth + gap, 0)
+        end
 
+        tagHolder.Size = UDim2.fromOffset(totalWidth, 20)
+        tagHolder.Position = UDim2.fromOffset(x, 8)
         tagHolder.Visible = true
-
         return self
+    end
+
+    function Window:Tag(tagConfig)
+        tagConfig = tagConfig or {}
+        return self:CreateTag({
+            Title = tagConfig.Title or "Tag",
+            Subtitle = tagConfig.Subtitle or "",
+            TitleIcon = tagConfig.TitleIcon or tagConfig.Icon,
+            SubtitleIcon = tagConfig.SubtitleIcon,
+            TitleColor = tagConfig.TitleColor or tagConfig.Color,
+            SubtitleColor = tagConfig.SubtitleColor,
+        })
     end
     -- SEARCH BAR
     local searchBox
