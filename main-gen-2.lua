@@ -1,4 +1,6 @@
--- DarkyUI v1.5.2 | Rework Mode
+-- DarkyUI v1.5.2 | Rework Mode + Transparency Fix
+-- Design reference: file_00000000873c81fabe5fe0b2b93734d0.png
+-- This uploaded image is the visual reference for the DarkyUI main UI style.
 --
 -- ________  _______   ________  ________     ___       ___  ___  ________     |\_____  \|\  ___ \|\   __  \|\   __  \   |\  \     |\  \|\  \|\   __  \     \|___/  /\ \   __/|\ \  |\  \ \  |\  \  \ \  \    \ \  \\  \ \  |\  \
 --     /  / /\ \  \_|/_\ \   _  _\ \  \\  \  \  \ \\  \  \ \   __  \      /  /_/__\ \  \_\ \ \  \\  \\ \  \\  \  \ \  \____\ \  \\  \ \  \ \  \     |\________\ \_______\ \__\\ _\\ \_______\  \ \_______\ \_______\ \__\ \__\     \|_______|\|_______|\|__|\|__|\|_______|   \|_______|\|_______|\|__|\|__|
@@ -16,7 +18,7 @@ local DarkyUIGen2 = {}
 --   Folder = "MySuperHub"                 Storage folder.
 --   Size = UDim2.fromOffset(550, 350)     Window size.
 --   Theme = "BlueSky"                     Window theme.
---   Transparent = true                    Glass/translucent main panel.
+--   Transparent = true                    Whole main UI surfaces at 0.50 transparency; false = fully opaque/dark.
 --   Resizable = true                      Enables resize handle.
 --   SideBarWidth = 200                    Left tab-menu width.
 --   HiderSearchBar = false                false = show, true = hide.
@@ -591,6 +593,11 @@ local POP = TweenInfo.new(
     0
 )
 -- HELPERS
+-- IMPORTANT: Transparent controls ONLY the outer Main library surface.
+-- Child surfaces (SearchBar, tab menu, sections, buttons, dropdowns, toggles,
+-- sliders, inputs, etc.) keep their normal dark/panel backgrounds. This gives
+-- the library a transparent/glass outer shell without making every element
+-- see-through.
 local function New(className, properties)
     local object = Instance.new(className)
 
@@ -2710,6 +2717,11 @@ function DarkyUIGen2:CreateWindow(config)
         or UDim2.fromOffset(WINDOW_WIDTH, WINDOW_HEIGHT)
 
     Window.Transparent = config.Transparent == true
+    -- Exact visual rule for the Gen-2 main library:
+    -- false = fully opaque/super-dark UI; true = 0.50 translucent UI.
+    -- The same value is inherited by every surface created under Main,
+    -- including SearchBar, tab menu, sections and element panels.
+    Window.SurfaceTransparency = Window.Transparent and 0.50 or 0.00
     Window.Resizable = config.Resizable == true
 
     Window.SideBarWidth = math.clamp(
@@ -2876,7 +2888,7 @@ function DarkyUIGen2:CreateWindow(config)
             Position = UDim2.fromScale(0.5, 0.5),
             Size = Window.Size,
             BackgroundColor3 = COLORS.Background,
-            BackgroundTransparency = Window.Transparent and 0.38 or 0.12,
+            BackgroundTransparency = Window.SurfaceTransparency,
             BorderSizePixel = 0,
             ClipsDescendants = true,
             Visible = not Window._KeyLocked and not Window._ProgressLocked,
@@ -2885,6 +2897,9 @@ function DarkyUIGen2:CreateWindow(config)
     )
 
     Window.Main = main
+
+    -- Transparent applies ONLY to this outer Main surface.
+    -- All child UI surfaces keep their normal opaque/dark appearance.
 
     if Window.BackgroundImage
         and tostring(Window.BackgroundImage) ~= "" then
@@ -6693,12 +6708,12 @@ function DarkyUIGen2:CreateWindow(config)
 
                 return object
             end
-            -- COLORPICKER (REWORK)
+            -- COLORPICKER (HSV REWORK)
             function Section:CreateColorpicker(colorConfig)
                 colorConfig = colorConfig or {}
 
                 local title = tostring(colorConfig.Title or "Select Color")
-                local desc = tostring(colorConfig.Desc or "Choose a theme color")
+                local desc = tostring(colorConfig.Desc or "Choose your own color")
                 local locked = colorConfig.Locked == true
 
                 local palette = {
@@ -6711,15 +6726,34 @@ function DarkyUIGen2:CreateWindow(config)
                     White = Color3.fromRGB(255, 255, 255),
                 }
 
-                local names = {
-                    "Red", "BlueSky", "Green", "Yellow", "Purple", "Orange", "White",
-                }
-
-                local currentName = tostring(colorConfig.Value or colorConfig.Default or "BlueSky")
-                if not palette[currentName] then
-                    currentName = "BlueSky"
+                local function resolveInitialColor(value)
+                    if typeof(value) == "Color3" then
+                        return value
+                    end
+                    local name = tostring(value or "BlueSky")
+                    return palette[name] or palette.BlueSky
                 end
-                local currentColor = palette[currentName]
+
+                local currentColor = resolveInitialColor(colorConfig.Value or colorConfig.Default)
+                local hue, saturation, value = currentColor:ToHSV()
+
+                local function closestPreset(color)
+                    local bestName, bestDistance
+                    for name, preset in pairs(palette) do
+                        local d = (preset.R - color.R)^2 + (preset.G - color.G)^2 + (preset.B - color.B)^2
+                        if not bestDistance or d < bestDistance then
+                            bestName, bestDistance = name, d
+                        end
+                    end
+                    return bestName
+                end
+
+                local currentName = closestPreset(currentColor)
+                if typeof(colorConfig.Value) == "string" and palette[tostring(colorConfig.Value)] then
+                    currentName = tostring(colorConfig.Value)
+                elseif typeof(colorConfig.Default) == "string" and palette[tostring(colorConfig.Default)] then
+                    currentName = tostring(colorConfig.Default)
+                end
 
                 local rootHeight = desc ~= "" and 50 or 34
                 local root = New("Frame", {
@@ -6759,7 +6793,7 @@ function DarkyUIGen2:CreateWindow(config)
                 AddCorner(colorButton, 7)
                 Stroke(colorButton, COLORS.Border, 1)
 
-                local clickIcon = Icon(colorButton, colorConfig.Icon or "mouse-pointer-click", 15,
+                local clickIcon = Icon(colorButton, colorConfig.Icon or "droplets", 15,
                     UDim2.new(0.5, -7.5, 0.5, -7.5), 20, false)
 
                 local function updateColorButtonVisual()
@@ -6769,211 +6803,207 @@ function DarkyUIGen2:CreateWindow(config)
                         clickIcon.ImageColor3 = luminance > 0.58 and Color3.fromRGB(20, 20, 20) or Color3.fromRGB(255, 255, 255)
                     end
                 end
-
                 updateColorButtonVisual()
 
-                -- Popup lives in its own CoreGui overlay so it is never clipped by
-                -- the page/section holder. It behaves like an extra floating element.
                 local popupGui = New("ScreenGui", {
-                    Name = "DarkyUI_ColorpickerPopup",
-                    Parent = CoreGui,
-                    IgnoreGuiInset = true,
-                    ResetOnSpawn = false,
-                    ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+                    Name = "DarkyUI_ColorpickerPopup", Parent = CoreGui, IgnoreGuiInset = true,
+                    ResetOnSpawn = false, ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
                     DisplayOrder = 2147483000,
                 })
 
                 local popup = New("Frame", {
-                    Parent = popupGui,
-                    Size = UDim2.fromOffset(190, 265),
-                    BackgroundColor3 = COLORS.Panel,
-                    BorderSizePixel = 0,
-                    Visible = false,
-                    ZIndex = 200,
-                    ClipsDescendants = true,
+                    Parent = popupGui, Size = UDim2.fromOffset(315, 345),
+                    BackgroundColor3 = COLORS.Panel, BorderSizePixel = 0,
+                    Visible = false, ZIndex = 200, ClipsDescendants = false,
                 })
                 AddCorner(popup, 8)
                 Stroke(popup, COLORS.Border, 1)
 
                 New("TextLabel", {
                     Parent = popup, BackgroundTransparency = 1,
-                    Position = UDim2.fromOffset(12, 9),
-                    Size = UDim2.new(1, -24, 0, 17), Text = title,
-                    TextColor3 = COLORS.Text, TextSize = 11, Font = Enum.Font.GothamMedium,
+                    Position = UDim2.fromOffset(14, 9), Size = UDim2.new(1, -55, 0, 20),
+                    Text = title, TextColor3 = COLORS.Text, TextSize = 13, Font = Enum.Font.GothamMedium,
                     TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 202,
                 })
 
-                local list = New("ScrollingFrame", {
-                    Parent = popup, BackgroundTransparency = 1,
-                    Position = UDim2.fromOffset(8, 31), Size = UDim2.new(1, -16, 1, -39),
-                    BorderSizePixel = 0, ScrollBarThickness = 3,
-                    ScrollBarImageColor3 = COLORS.Border, CanvasSize = UDim2.new(),
-                    AutomaticCanvasSize = Enum.AutomaticSize.Y,
-                    ScrollingDirection = Enum.ScrollingDirection.Y,
-                    ZIndex = 201,
+                local close = New("TextButton", {
+                    Parent = popup, BackgroundTransparency = 1, AnchorPoint = Vector2.new(1, 0),
+                    Position = UDim2.new(1, -9, 0, 7), Size = UDim2.fromOffset(25, 25),
+                    Text = "×", TextSize = 22, Font = Enum.Font.GothamMedium,
+                    TextColor3 = COLORS.SubText, AutoButtonColor = false, ZIndex = 203,
                 })
 
-                local layout = New("UIListLayout", {
-                    Parent = list,
-                    Padding = UDim.new(0, 5),
-                    SortOrder = Enum.SortOrder.LayoutOrder,
+                local picker = New("Frame", {
+                    Parent = popup, Position = UDim2.fromOffset(14, 40),
+                    Size = UDim2.new(1, -28, 0, 235), BackgroundColor3 = Color3.new(1,1,1),
+                    BorderSizePixel = 0, ZIndex = 201,
+                })
+                AddCorner(picker, 7)
+
+                local colorGradient = New("UIGradient", {
+                    Parent = picker, Rotation = 0,
+                    Color = ColorSequence.new({
+                        ColorSequenceKeypoint.new(0, Color3.new(1,1,1)),
+                        ColorSequenceKeypoint.new(1, Color3.fromHSV(hue,1,1)),
+                    }),
                 })
 
-                local buttons = {}
+                local valueOverlay = New("Frame", {
+                    Parent = picker, Size = UDim2.fromScale(1,1),
+                    BackgroundColor3 = Color3.new(0,0,0), BorderSizePixel = 0, ZIndex = 202,
+                })
+                AddCorner(valueOverlay, 7)
+                New("UIGradient", {
+                    Parent = valueOverlay, Rotation = 90,
+                    Transparency = NumberSequence.new({
+                        NumberSequenceKeypoint.new(0, 1),
+                        NumberSequenceKeypoint.new(1, 0),
+                    }),
+                })
 
-                local function fireCallback()
-                    if typeof(colorConfig.Callback) == "function" then
+                local svMarker = New("Frame", {
+                    Parent = picker, AnchorPoint = Vector2.new(0.5,0.5),
+                    Size = UDim2.fromOffset(16,16), BackgroundColor3 = currentColor,
+                    BorderSizePixel = 0, ZIndex = 205,
+                })
+                AddCorner(svMarker, 100)
+                Stroke(svMarker, Color3.fromRGB(255,255,255), 2)
+
+                local hueBar = New("Frame", {
+                    Parent = popup, Position = UDim2.fromOffset(14, 286),
+                    Size = UDim2.new(1,-28,0,25), BackgroundColor3 = Color3.fromRGB(255,0,0),
+                    BorderSizePixel = 0, ZIndex = 201,
+                })
+                AddCorner(hueBar, 7)
+
+                New("UIGradient", {
+                    Parent = hueBar, Rotation = 0,
+                    Color = ColorSequence.new({
+                        ColorSequenceKeypoint.new(0.000, Color3.fromHSV(0.000,1,1)),
+                        ColorSequenceKeypoint.new(0.166, Color3.fromHSV(0.166,1,1)),
+                        ColorSequenceKeypoint.new(0.333, Color3.fromHSV(0.333,1,1)),
+                        ColorSequenceKeypoint.new(0.500, Color3.fromHSV(0.500,1,1)),
+                        ColorSequenceKeypoint.new(0.666, Color3.fromHSV(0.666,1,1)),
+                        ColorSequenceKeypoint.new(0.833, Color3.fromHSV(0.833,1,1)),
+                        ColorSequenceKeypoint.new(1.000, Color3.fromHSV(1.000,1,1)),
+                    }),
+                })
+
+                local hueMarker = New("Frame", {
+                    Parent = hueBar, AnchorPoint = Vector2.new(0.5,0.5),
+                    Size = UDim2.fromOffset(18,31), Position = UDim2.new(hue,0,0.5,0),
+                    BackgroundColor3 = Color3.fromRGB(255,255,255), BorderSizePixel = 0, ZIndex = 205,
+                })
+                AddCorner(hueMarker, 6)
+                Stroke(hueMarker, Color3.fromRGB(255,255,255), 1)
+
+                local hexLabel = New("TextLabel", {
+                    Parent = popup, BackgroundTransparency = 1, Position = UDim2.fromOffset(14, 316),
+                    Size = UDim2.new(1,-28,0,18), Text = "#FFFFFF", TextColor3 = COLORS.SubText,
+                    TextSize = 10, Font = Enum.Font.GothamMedium, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 203,
+                })
+
+                local function toHex(color)
+                    local function ch(v) return math.clamp(math.floor(v * 255 + 0.5), 0, 255) end
+                    return string.format("#%02X%02X%02X", ch(color.R), ch(color.G), ch(color.B))
+                end
+
+                local function setAccentColor(color, callCallback)
+                    currentColor = color
+                    hue, saturation, value = currentColor:ToHSV()
+                    currentName = closestPreset(currentColor)
+                    ApplyAccentOverride(currentColor)
+                    updateColorButtonVisual()
+
+                    colorGradient.Color = ColorSequence.new({
+                        ColorSequenceKeypoint.new(0, Color3.new(1,1,1)),
+                        ColorSequenceKeypoint.new(1, Color3.fromHSV(hue,1,1)),
+                    })
+                    svMarker.Position = UDim2.new(saturation,0,1-value,0)
+                    svMarker.BackgroundColor3 = currentColor
+                    hueMarker.Position = UDim2.new(hue,0,0.5,0)
+                    hexLabel.Text = toHex(currentColor)
+
+                    if callCallback ~= false and typeof(colorConfig.Callback) == "function" then
                         task.spawn(colorConfig.Callback, currentColor)
                     end
                 end
 
-                local function refreshButtonStates()
-                    for name, button in pairs(buttons) do
-                        local selected = name == currentName
-                        button.BackgroundColor3 = selected and COLORS.Hover or COLORS.Panel2
-                        local check = button:FindFirstChild("SelectedCheck")
-                        if check then
-                            check.Visible = selected
-                            check.TextColor3 = currentColor
+                local function updateFromSV(x,y)
+                    local pos, size = picker.AbsolutePosition, picker.AbsoluteSize
+                    if size.X <= 0 or size.Y <= 0 then return end
+                    saturation = math.clamp((x-pos.X)/size.X,0,1)
+                    value = math.clamp(1-((y-pos.Y)/size.Y),0,1)
+                    setAccentColor(Color3.fromHSV(hue,saturation,value), true)
+                end
+
+                local function updateFromHue(x)
+                    local pos, size = hueBar.AbsolutePosition, hueBar.AbsoluteSize
+                    if size.X <= 0 then return end
+                    hue = math.clamp((x-pos.X)/size.X,0,1)
+                    setAccentColor(Color3.fromHSV(hue,saturation,value), true)
+                end
+
+                local dragConnections = {}
+                local function bindDrag(target, callback)
+                    local dragging = false
+                    local dragInput
+                    table.insert(dragConnections, target.InputBegan:Connect(function(input)
+                        if locked then return end
+                        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                            dragging = true
+                            dragInput = input
+                            callback(input.Position.X, input.Position.Y)
                         end
-                    end
-                end
-
-                local function setColorName(name, callCallback)
-                    if locked or not palette[name] then
-                        return
-                    end
-                    currentName = name
-                    currentColor = palette[name]
-                    -- Presets act like accent colors: they update accent-driven
-                    -- toggles, sliders, icons, and accent borders/aura, while
-                    -- keeping Window.Border and Window.Blur settings unchanged.
-                    ApplyAccentOverride(currentColor)
-                    updateColorButtonVisual()
-                    refreshButtonStates()
-                    if callCallback ~= false then
-                        fireCallback()
-                    end
-                end
-
-                for index, name in ipairs(names) do
-                    local item = New("TextButton", {
-                        Parent = list,
-                        Size = UDim2.new(1, 0, 0, 28),
-                        BackgroundColor3 = COLORS.Panel2,
-                        BorderSizePixel = 0,
-                        AutoButtonColor = false,
-                        Text = "",
-                        LayoutOrder = index,
-                        Active = not locked,
-                        ZIndex = 202,
-                    })
-                    AddCorner(item, 6)
-                    Stroke(item, COLORS.Border, 1)
-
-                    local swatch = New("Frame", {
-                        Parent = item,
-                        Position = UDim2.fromOffset(7, 6),
-                        Size = UDim2.fromOffset(16, 16),
-                        BackgroundColor3 = palette[name],
-                        BorderSizePixel = 0,
-                        ZIndex = 203,
-                    })
-                    AddCorner(swatch, 4)
-                    Stroke(swatch, COLORS.Border, 1)
-
-                    New("TextLabel", {
-                        Parent = item,
-                        BackgroundTransparency = 1,
-                        Position = UDim2.fromOffset(31, 0),
-                        Size = UDim2.new(1, -60, 1, 0),
-                        Text = name,
-                        TextColor3 = COLORS.Text,
-                        TextSize = 10,
-                        Font = Enum.Font.Gotham,
-                        TextXAlignment = Enum.TextXAlignment.Left,
-                        ZIndex = 203,
-                    })
-
-                    New("TextLabel", {
-                        Name = "SelectedCheck",
-                        Parent = item,
-                        BackgroundTransparency = 1,
-                        AnchorPoint = Vector2.new(1, 0.5),
-                        Position = UDim2.new(1, -8, 0.5, 0),
-                        Size = UDim2.fromOffset(16, 16),
-                        Text = "✓",
-                        TextColor3 = COLORS.Text,
-                        TextSize = 13,
-                        Font = Enum.Font.GothamBold,
-                        Visible = false,
-                        ZIndex = 204,
-                    })
-
-                    item.MouseButton1Click:Connect(function()
-                        if locked then
-                            return
+                    end))
+                    table.insert(dragConnections, target.InputEnded:Connect(function(input)
+                        if input == dragInput or input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                            dragging = false
+                            dragInput = nil
                         end
-                        setColorName(name, true)
-                        popup.Visible = false
-                    end)
-
-                    buttons[name] = item
+                    end))
+                    table.insert(dragConnections, UserInputService.InputChanged:Connect(function(input)
+                        if not dragging then return end
+                        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+                            callback(input.Position.X, input.Position.Y)
+                        end
+                    end))
                 end
+
+                bindDrag(picker, updateFromSV)
+                bindDrag(hueBar, function(x) updateFromHue(x) end)
 
                 local function getRootPoint()
-                    local pos = root.AbsolutePosition
-                    local size = root.AbsoluteSize
-                    return pos, size
+                    return root.AbsolutePosition, root.AbsoluteSize
                 end
 
                 local function positionPopup()
-                    if not popup or not popup.Parent then
-                        return
-                    end
-
+                    if not popup or not popup.Parent then return end
                     local pos, size = getRootPoint()
-                    local viewport = workspace.CurrentCamera
-                    local viewportSize = viewport and viewport.ViewportSize or Vector2.new(550, 350)
-
-                    local popupWidth = popup.AbsoluteSize.X > 0 and popup.AbsoluteSize.X or 190
-                    local popupHeight = popup.AbsoluteSize.Y > 0 and popup.AbsoluteSize.Y or 265
-
-                    local x = pos.X + size.X - popupWidth
+                    local camera = workspace.CurrentCamera
+                    local viewport = camera and camera.ViewportSize or Vector2.new(550,350)
+                    local w,h = 315,345
+                    local x = pos.X + size.X - w
                     local y = pos.Y + size.Y + 6
-
-                    if x + popupWidth > viewportSize.X - 8 then
-                        x = viewportSize.X - popupWidth - 8
+                    if x + w > viewport.X - 8 then x = viewport.X - w - 8 end
+                    if x < 8 then x = 8 end
+                    if y + h > viewport.Y - 8 then
+                        local above = pos.Y - h - 6
+                        y = above >= 8 and above or math.max(8, viewport.Y-h-8)
                     end
-                    if x < 8 then
-                        x = 8
-                    end
-
-                    if y + popupHeight > viewportSize.Y - 8 then
-                        local above = pos.Y - popupHeight - 6
-                        y = above >= 8 and above or math.max(8, viewportSize.Y - popupHeight - 8)
-                    end
-
-                    popup.Position = UDim2.fromOffset(x, y)
+                    popup.Position = UDim2.fromOffset(x,y)
                 end
 
                 local trackedScrollConnections = {}
                 local function trackScrollAncestors()
-                    for _, connection in ipairs(trackedScrollConnections) do
-                        pcall(function() connection:Disconnect() end)
-                    end
+                    for _, connection in ipairs(trackedScrollConnections) do pcall(function() connection:Disconnect() end) end
                     table.clear(trackedScrollConnections)
-
                     local ancestor = root.Parent
                     while ancestor do
                         if ancestor:IsA("ScrollingFrame") then
-                            table.insert(trackedScrollConnections,
-                                ancestor:GetPropertyChangedSignal("CanvasPosition"):Connect(function()
-                                    if popup.Visible then
-                                        positionPopup()
-                                    end
-                                end)
-                            )
+                            table.insert(trackedScrollConnections, ancestor:GetPropertyChangedSignal("CanvasPosition"):Connect(function()
+                                if popup.Visible then positionPopup() end
+                            end))
                         end
                         ancestor = ancestor.Parent
                     end
@@ -6981,121 +7011,73 @@ function DarkyUIGen2:CreateWindow(config)
                 trackScrollAncestors()
 
                 root:GetPropertyChangedSignal("AbsolutePosition"):Connect(function()
-                    if popup.Visible then
-                        positionPopup()
-                    end
+                    if popup.Visible then positionPopup() end
                 end)
                 root:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
-                    if popup.Visible then
-                        positionPopup()
-                    end
+                    if popup.Visible then positionPopup() end
                 end)
 
                 colorButton.MouseButton1Click:Connect(function()
-                    if locked then
-                        return
-                    end
-
+                    if locked then return end
                     popup.Visible = not popup.Visible
                     if popup.Visible then
-                        refreshButtonStates()
+                        setAccentColor(currentColor, false)
                         positionPopup()
                     end
                 end)
 
+                close.MouseButton1Click:Connect(function() popup.Visible = false end)
+
                 local inputConnection = UserInputService.InputBegan:Connect(function(input)
-                    if not popup.Visible then
-                        return
-                    end
-
-                    if input.UserInputType ~= Enum.UserInputType.MouseButton1
-                        and input.UserInputType ~= Enum.UserInputType.Touch then
-                        return
-                    end
-
+                    if not popup.Visible then return end
+                    if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then return end
                     local pos = input.Position
-                    local p, ps = popup.AbsolutePosition, popup.AbsoluteSize
-                    local b, bs = colorButton.AbsolutePosition, colorButton.AbsoluteSize
-
-                    local insidePopup =
-                        pos.X >= p.X and pos.X <= p.X + ps.X
-                        and pos.Y >= p.Y and pos.Y <= p.Y + ps.Y
-
-                    local insideButton =
-                        pos.X >= b.X and pos.X <= b.X + bs.X
-                        and pos.Y >= b.Y and pos.Y <= b.Y + bs.Y
-
-                    if not insidePopup and not insideButton then
-                        popup.Visible = false
-                    end
+                    local pp, ps = popup.AbsolutePosition, popup.AbsoluteSize
+                    local bp, bs = colorButton.AbsolutePosition, colorButton.AbsoluteSize
+                    local insidePopup = pos.X >= pp.X and pos.X <= pp.X+ps.X and pos.Y >= pp.Y and pos.Y <= pp.Y+ps.Y
+                    local insideButton = pos.X >= bp.X and pos.X <= bp.X+bs.X and pos.Y >= bp.Y and pos.Y <= bp.Y+bs.Y
+                    if not insidePopup and not insideButton then popup.Visible = false end
                 end)
 
-                refreshButtonStates()
+                setAccentColor(currentColor, false)
 
-                local object = {
-                    Root = root,
-                    Button = colorButton,
-                    Popup = popup,
-                    PopupGui = popupGui,
-                    Type = "Colorpicker",
-                }
+                local object = { Root=root, Button=colorButton, Popup=popup, PopupGui=popupGui, Type="Colorpicker" }
 
-                function object:GetValue()
-                    return currentColor
-                end
+                function object:GetValue() return currentColor end
+                function object:GetName() return currentName end
 
-                function object:GetName()
-                    return currentName
-                end
-
-                function object:SetValue(value, callCallback)
-                    if locked then
-                        return
-                    end
-
-                    local name = tostring(value or "")
-                    if palette[name] then
-                        setColorName(name, callCallback ~= false)
-                    elseif typeof(value) == "Color3" then
-                        local closestName, closestDistance
-                        for candidate, color in pairs(palette) do
-                            local d =
-                                (color.R - value.R)^2
-                                + (color.G - value.G)^2
-                                + (color.B - value.B)^2
-
-                            if not closestDistance or d < closestDistance then
-                                closestName, closestDistance = candidate, d
-                            end
-                        end
-
-                        setColorName(closestName or "BlueSky", callCallback ~= false)
+                function object:SetValue(valueToSet, callCallback)
+                    if locked then return end
+                    if typeof(valueToSet) == "Color3" then
+                        setAccentColor(valueToSet, callCallback ~= false)
+                    else
+                        local name = tostring(valueToSet or "")
+                        if palette[name] then setAccentColor(palette[name], callCallback ~= false) end
                     end
                 end
 
-                function object:SetLocked(value)
-                    locked = value == true
+                function object:SetLocked(valueToSet)
+                    locked = valueToSet == true
                     colorButton.Active = not locked
-                    if locked then
-                        popup.Visible = false
-                    end
+                    if locked then popup.Visible = false end
+                end
+
+                function object:Close() popup.Visible = false end
+                function object:Open()
+                    if locked then return end
+                    popup.Visible = true
+                    setAccentColor(currentColor, false)
+                    positionPopup()
                 end
 
                 function object:Destroy()
-                    if inputConnection then
-                        pcall(function() inputConnection:Disconnect() end)
-                        inputConnection = nil
-                    end
-                    for _, connection in ipairs(trackedScrollConnections) do
-                        pcall(function() connection:Disconnect() end)
-                    end
+                    if inputConnection then pcall(function() inputConnection:Disconnect() end); inputConnection=nil end
+                    for _, connection in ipairs(trackedScrollConnections) do pcall(function() connection:Disconnect() end) end
                     table.clear(trackedScrollConnections)
-                    if popupGui and popupGui.Parent then
-                        popupGui:Destroy()
-                    end
-                    if root and root.Parent then
-                        root:Destroy()
-                    end
+                    for _, connection in ipairs(dragConnections) do pcall(function() connection:Disconnect() end) end
+                    table.clear(dragConnections)
+                    if popupGui and popupGui.Parent then popupGui:Destroy() end
+                    if root and root.Parent then root:Destroy() end
                 end
 
                 RegisterFlag(colorConfig.Flag, object)
