@@ -1,4 +1,5 @@
--- DarkyUI v1.5.2 | Rework Mode + Transparency Fix
+-- DarkyUI v1.5.3 | Rework Mode + Transparency + HSV ColorPicker Fix
+-- v1.5.3 proof fixes: ColorPicker only closes from its X button, popup dragging cannot move the main window, and the hue spectrum renders a full visible rainbow.
 -- Design reference: file_00000000873c81fabe5fe0b2b93734d0.png
 -- This uploaded image is the visual reference for the DarkyUI main UI style.
 --
@@ -129,6 +130,7 @@ DarkyUIGen2._ThemeObjects = {}
 DarkyUIGen2._AccentOverride = nil
 DarkyUIGen2._AccentOverride2 = nil
 DarkyUIGen2._ColorpickerAccentActive = false
+DarkyUIGen2._OpenColorpickerPopup = nil
 -- FLAG REGISTRY
 -- Any element created with a Flag in its config (e.g.
 -- Section:CreateToggle({ Flag = "MyToggle", ... })) registers itself
@@ -3007,6 +3009,14 @@ function DarkyUIGen2:CreateWindow(config)
         end
 
         top.InputBegan:Connect(function(input)
+            -- v1.5.3: while an HSV ColorPicker popup is open, touches/mouse
+            -- on the popup must never start dragging the main DarkyUI window.
+            if DarkyUIGen2._OpenColorpickerPopup and
+                DarkyUIGen2._OpenColorpickerPopup.Parent and
+                DarkyUIGen2._OpenColorpickerPopup.Visible then
+                return
+            end
+
             if input.UserInputType ==
                 Enum.UserInputType.MouseButton1
                 or input.UserInputType ==
@@ -6814,7 +6824,7 @@ function DarkyUIGen2:CreateWindow(config)
                 local popup = New("Frame", {
                     Parent = popupGui, Size = UDim2.fromOffset(315, 345),
                     BackgroundColor3 = COLORS.Panel, BorderSizePixel = 0,
-                    Visible = false, ZIndex = 200, ClipsDescendants = false,
+                    Visible = false, Active = true, ZIndex = 200, ClipsDescendants = false,
                 })
                 AddCorner(popup, 8)
                 Stroke(popup, COLORS.Border, 1)
@@ -6836,7 +6846,7 @@ function DarkyUIGen2:CreateWindow(config)
                 local picker = New("Frame", {
                     Parent = popup, Position = UDim2.fromOffset(14, 40),
                     Size = UDim2.new(1, -28, 0, 235), BackgroundColor3 = Color3.new(1,1,1),
-                    BorderSizePixel = 0, ZIndex = 201,
+                    BorderSizePixel = 0, ZIndex = 201, Active = true,
                 })
                 AddCorner(picker, 7)
 
@@ -6869,23 +6879,32 @@ function DarkyUIGen2:CreateWindow(config)
                 AddCorner(svMarker, 100)
                 Stroke(svMarker, Color3.fromRGB(255,255,255), 2)
 
+                -- v1.5.3: the hue control is a real full-spectrum rainbow.
+                -- The old sparse gradient could visually collapse toward red/dark
+                -- on some Roblox/mobile renders even though hue dragging still worked.
                 local hueBar = New("Frame", {
                     Parent = popup, Position = UDim2.fromOffset(14, 286),
-                    Size = UDim2.new(1,-28,0,25), BackgroundColor3 = Color3.fromRGB(255,0,0),
-                    BorderSizePixel = 0, ZIndex = 201,
+                    Size = UDim2.new(1,-28,0,25), BackgroundColor3 = Color3.fromRGB(255,255,255),
+                    BorderSizePixel = 0, ZIndex = 201, Active = true,
                 })
                 AddCorner(hueBar, 7)
 
                 New("UIGradient", {
                     Parent = hueBar, Rotation = 0,
                     Color = ColorSequence.new({
-                        ColorSequenceKeypoint.new(0.000, Color3.fromHSV(0.000,1,1)),
-                        ColorSequenceKeypoint.new(0.166, Color3.fromHSV(0.166,1,1)),
-                        ColorSequenceKeypoint.new(0.333, Color3.fromHSV(0.333,1,1)),
-                        ColorSequenceKeypoint.new(0.500, Color3.fromHSV(0.500,1,1)),
-                        ColorSequenceKeypoint.new(0.666, Color3.fromHSV(0.666,1,1)),
-                        ColorSequenceKeypoint.new(0.833, Color3.fromHSV(0.833,1,1)),
-                        ColorSequenceKeypoint.new(1.000, Color3.fromHSV(1.000,1,1)),
+                        ColorSequenceKeypoint.new(0.000, Color3.fromRGB(255, 0, 0)),
+                        ColorSequenceKeypoint.new(0.083, Color3.fromRGB(255, 128, 0)),
+                        ColorSequenceKeypoint.new(0.166, Color3.fromRGB(255, 255, 0)),
+                        ColorSequenceKeypoint.new(0.250, Color3.fromRGB(128, 255, 0)),
+                        ColorSequenceKeypoint.new(0.333, Color3.fromRGB(0, 255, 0)),
+                        ColorSequenceKeypoint.new(0.416, Color3.fromRGB(0, 255, 128)),
+                        ColorSequenceKeypoint.new(0.500, Color3.fromRGB(0, 255, 255)),
+                        ColorSequenceKeypoint.new(0.583, Color3.fromRGB(0, 128, 255)),
+                        ColorSequenceKeypoint.new(0.666, Color3.fromRGB(0, 0, 255)),
+                        ColorSequenceKeypoint.new(0.750, Color3.fromRGB(128, 0, 255)),
+                        ColorSequenceKeypoint.new(0.833, Color3.fromRGB(255, 0, 255)),
+                        ColorSequenceKeypoint.new(0.916, Color3.fromRGB(255, 0, 128)),
+                        ColorSequenceKeypoint.new(1.000, Color3.fromRGB(255, 0, 0)),
                     }),
                 })
 
@@ -7017,26 +7036,26 @@ function DarkyUIGen2:CreateWindow(config)
                     if popup.Visible then positionPopup() end
                 end)
 
-                colorButton.MouseButton1Click:Connect(function()
-                    if locked then return end
-                    popup.Visible = not popup.Visible
+                local function setPopupVisible(visible)
+                    popup.Visible = visible == true
                     if popup.Visible then
+                        DarkyUIGen2._OpenColorpickerPopup = popup
                         setAccentColor(currentColor, false)
                         positionPopup()
+                    elseif DarkyUIGen2._OpenColorpickerPopup == popup then
+                        DarkyUIGen2._OpenColorpickerPopup = nil
                     end
+                end
+
+                colorButton.MouseButton1Click:Connect(function()
+                    if locked then return end
+                    -- v1.5.3: opening the picker is not a toggle-close action.
+                    -- The picker stays open until its X button is pressed.
+                    setPopupVisible(true)
                 end)
 
-                close.MouseButton1Click:Connect(function() popup.Visible = false end)
-
-                local inputConnection = UserInputService.InputBegan:Connect(function(input)
-                    if not popup.Visible then return end
-                    if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then return end
-                    local pos = input.Position
-                    local pp, ps = popup.AbsolutePosition, popup.AbsoluteSize
-                    local bp, bs = colorButton.AbsolutePosition, colorButton.AbsoluteSize
-                    local insidePopup = pos.X >= pp.X and pos.X <= pp.X+ps.X and pos.Y >= pp.Y and pos.Y <= pp.Y+ps.Y
-                    local insideButton = pos.X >= bp.X and pos.X <= bp.X+bs.X and pos.Y >= bp.Y and pos.Y <= bp.Y+bs.Y
-                    if not insidePopup and not insideButton then popup.Visible = false end
+                close.MouseButton1Click:Connect(function()
+                    setPopupVisible(false)
                 end)
 
                 setAccentColor(currentColor, false)
@@ -7059,19 +7078,22 @@ function DarkyUIGen2:CreateWindow(config)
                 function object:SetLocked(valueToSet)
                     locked = valueToSet == true
                     colorButton.Active = not locked
-                    if locked then popup.Visible = false end
+                    if locked then
+                        setPopupVisible(false)
+                    end
                 end
 
-                function object:Close() popup.Visible = false end
+                function object:Close()
+                    setPopupVisible(false)
+                end
+
                 function object:Open()
                     if locked then return end
-                    popup.Visible = true
-                    setAccentColor(currentColor, false)
-                    positionPopup()
+                    setPopupVisible(true)
                 end
 
                 function object:Destroy()
-                    if inputConnection then pcall(function() inputConnection:Disconnect() end); inputConnection=nil end
+                    setPopupVisible(false)
                     for _, connection in ipairs(trackedScrollConnections) do pcall(function() connection:Disconnect() end) end
                     table.clear(trackedScrollConnections)
                     for _, connection in ipairs(dragConnections) do pcall(function() connection:Disconnect() end) end
