@@ -6529,10 +6529,12 @@ function DarkyUIGen2:CreateWindow(config)
                 local isTextarea = inputType:lower() == "textarea"
 
                 local inputHeight = isTextarea and 76 or 30
+                -- Extra bottom room prevents the input box from overflowing its
+                -- element root, especially when multiple sections share one tab.
                 local rootHeight =
                     (desc ~= "" and 27 or 7)
                     + inputHeight
-                    + 8
+                    + 20
 
                 local root = New(
                     "Frame",
