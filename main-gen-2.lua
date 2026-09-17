@@ -51,6 +51,8 @@ local DarkyUIGen2 = {}
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Stats = game:GetService("Stats")
 local CoreGui = game:GetService("CoreGui")
 local ContentProvider = game:GetService("ContentProvider")
 local HttpService = game:GetService("HttpService")
@@ -2931,6 +2933,205 @@ function DarkyUIGen2:CreateWindow(config)
             SubtitleColor = tagConfig.SubtitleColor,
         })
     end
+
+    -- FPS / GPU / PING MONITOR
+    -- One small draggable rectangle, anchored above the main window by
+    -- default, showing whichever of FPS / GPU memory / Ping the caller
+    -- asks for, all inside the same box.
+    function Window:CreateFPS(fpsConfig)
+        fpsConfig = fpsConfig or {}
+
+        if Window._FPSMonitor then
+            Window._FPSMonitor:Destroy()
+            Window._FPSMonitor = nil
+        end
+
+        local fpsTitle = tostring(fpsConfig.Title or "FPS UI")
+        local showFPS = fpsConfig.ShowFPS ~= false
+        local showGPU = fpsConfig.ShowGPU == true
+        local showPing = fpsConfig.ShowPings == true or fpsConfig.ShowPing == true
+        local fpsDraggable = fpsConfig.Draggable == true
+
+        local rows = {}
+        if showFPS then table.insert(rows, {Key = "fps", Label = "FPS", Icon = "activity"}) end
+        if showGPU then table.insert(rows, {Key = "gpu", Label = "GPU", Icon = "cpu"}) end
+        if showPing then table.insert(rows, {Key = "ping", Label = "Ping", Icon = "wifi"}) end
+        if #rows == 0 then return nil end
+
+        local Monitor = {Destroyed = false}
+
+        local rowHeight = 22
+        local padTop = 34
+        local panelHeight = padTop + (#rows * rowHeight) + 10
+        local panelWidth = 150
+
+        local holder = New("Frame", {
+            Parent = gui,
+            Name = "FPSMonitor",
+            AnchorPoint = Vector2.new(0.5, 1),
+            Position = UDim2.new(0.5, 0, 0.5, -(main.Size.Y.Offset / 2) - 14),
+            Size = UDim2.fromOffset(panelWidth, panelHeight),
+            BackgroundColor3 = COLORS.Background,
+            BorderSizePixel = 0,
+            ZIndex = 900,
+        })
+        AddCorner(holder, 10)
+        Stroke(holder, COLORS.Border, 1)
+
+        New("TextLabel", {
+            Parent = holder,
+            BackgroundTransparency = 1,
+            Position = UDim2.fromOffset(12, 8),
+            Size = UDim2.new(1, -24, 0, 16),
+            Text = fpsTitle,
+            TextColor3 = COLORS.Text,
+            TextSize = 11,
+            Font = Enum.Font.GothamBold,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            ZIndex = 901,
+        })
+
+        local dragGrip
+        if fpsDraggable then
+            dragGrip = New("Frame", {
+                Parent = holder,
+                AnchorPoint = Vector2.new(0.5, 0),
+                Position = UDim2.new(0.5, 0, 0, 3),
+                Size = UDim2.fromOffset(26, 3),
+                BackgroundColor3 = COLORS.SubText,
+                BackgroundTransparency = 0.35,
+                BorderSizePixel = 0,
+                ZIndex = 901,
+            })
+            AddCorner(dragGrip, 2)
+        end
+
+        local valueLabels = {}
+        for i, row in ipairs(rows) do
+            local y = padTop + ((i - 1) * rowHeight)
+
+            Icon(holder, row.Icon, 12, UDim2.fromOffset(12, y + 3), 901)
+
+            New("TextLabel", {
+                Parent = holder,
+                BackgroundTransparency = 1,
+                Position = UDim2.fromOffset(30, y),
+                Size = UDim2.fromOffset(60, rowHeight),
+                Text = row.Label,
+                TextColor3 = COLORS.SubText,
+                TextSize = 10,
+                Font = Enum.Font.GothamMedium,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                ZIndex = 901,
+            })
+
+            local valueLabel = New("TextLabel", {
+                Parent = holder,
+                BackgroundTransparency = 1,
+                Position = UDim2.new(1, -66, 0, y),
+                Size = UDim2.fromOffset(54, rowHeight),
+                Text = "--",
+                TextColor3 = COLORS.Text,
+                TextSize = 10,
+                Font = Enum.Font.GothamBold,
+                TextXAlignment = Enum.TextXAlignment.Right,
+                ZIndex = 901,
+            })
+            valueLabels[row.Key] = valueLabel
+        end
+
+        RegisterTheme(function(_, colors)
+            if holder and holder.Parent then
+                for _, label in pairs(valueLabels) do
+                    label.TextColor3 = colors.Accent2
+                end
+            end
+        end)
+
+        -- DRAG
+        if fpsDraggable then
+            holder.Active = true
+            local dragging, dragStart, startPos = false, nil, nil
+
+            local function beginDrag(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1
+                    or input.UserInputType == Enum.UserInputType.Touch then
+                    dragging = true
+                    dragStart = input.Position
+                    startPos = holder.Position
+                end
+            end
+            local function endDrag(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1
+                    or input.UserInputType == Enum.UserInputType.Touch then
+                    dragging = false
+                end
+            end
+
+            holder.InputBegan:Connect(beginDrag)
+            holder.InputEnded:Connect(endDrag)
+
+            local dragConn = UserInputService.InputChanged:Connect(function(input)
+                if not dragging then return end
+                if input.UserInputType == Enum.UserInputType.MouseMovement
+                    or input.UserInputType == Enum.UserInputType.Touch then
+                    local delta = input.Position - dragStart
+                    holder.Position = UDim2.new(
+                        startPos.X.Scale, startPos.X.Offset + delta.X,
+                        startPos.Y.Scale, startPos.Y.Offset + delta.Y
+                    )
+                end
+            end)
+            Monitor._DragConn = dragConn
+        end
+
+        -- LIVE UPDATE
+        local frameCount, frameTimer = 0, 0
+        local updateConn = RunService.RenderStepped:Connect(function(dt)
+            if not holder or not holder.Parent then return end
+
+            if showFPS then
+                frameCount += 1
+                frameTimer += dt
+                if frameTimer >= 0.5 then
+                    local fps = math.floor((frameCount / frameTimer) + 0.5)
+                    if valueLabels.fps then valueLabels.fps.Text = tostring(fps) end
+                    frameCount, frameTimer = 0, 0
+                end
+            end
+
+            if showGPU then
+                local ok, mb = pcall(function()
+                    return Stats:GetTotalMemoryUsageMb()
+                end)
+                if valueLabels.gpu then
+                    valueLabels.gpu.Text = ok and (math.floor(mb) .. " MB") or "N/A"
+                end
+            end
+
+            if showPing then
+                local ok, ping = pcall(function()
+                    return Stats.Network.ServerStatsItem["Data Ping"]:GetValue()
+                end)
+                if valueLabels.ping then
+                    valueLabels.ping.Text = ok and (math.floor(ping) .. " ms") or "N/A"
+                end
+            end
+        end)
+        Monitor._UpdateConn = updateConn
+
+        Monitor.Holder = holder
+        function Monitor:Destroy()
+            if self.Destroyed then return end
+            self.Destroyed = true
+            if self._UpdateConn then self._UpdateConn:Disconnect() end
+            if self._DragConn then self._DragConn:Disconnect() end
+            if holder then holder:Destroy() end
+        end
+
+        Window._FPSMonitor = Monitor
+        return Monitor
+    end
     -- SEARCH BAR
     local searchBox
 
@@ -2989,8 +3190,8 @@ function DarkyUIGen2:CreateWindow(config)
         "TextButton",
         {
             Parent = top,
-            Position = UDim2.new(1, -75, 0, 9),
-            Size = UDim2.fromOffset(30, 38),
+            Position = UDim2.new(1, -75, 0, 13),
+            Size = UDim2.fromOffset(30, 30),
             BackgroundColor3 = COLORS.Success,
             BorderSizePixel = 0,
             AutoButtonColor = false,
@@ -3013,8 +3214,8 @@ function DarkyUIGen2:CreateWindow(config)
         "TextButton",
         {
             Parent = top,
-            Position = UDim2.new(1, -40, 0, 9),
-            Size = UDim2.fromOffset(30, 38),
+            Position = UDim2.new(1, -40, 0, 13),
+            Size = UDim2.fromOffset(30, 30),
             BackgroundColor3 = COLORS.Danger,
             BorderSizePixel = 0,
             AutoButtonColor = false,
@@ -3618,6 +3819,11 @@ function DarkyUIGen2:CreateWindow(config)
         if self.Aura then
             pcall(function() self.Aura:Destroy() end)
             self.Aura = nil
+        end
+
+        if self._FPSMonitor then
+            pcall(function() self._FPSMonitor:Destroy() end)
+            self._FPSMonitor = nil
         end
 
         if gui then
