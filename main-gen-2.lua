@@ -1,5 +1,6 @@
--- DarkyUI v1.6 | Rework Mode + HSV ColorPicker + Tags + KeySystem Rework
+-- DarkyUI V1.6.5 | Rework Mode + HSV ColorPicker + Tags + KeySystem Rework
 -- v1.6 rework: dual square Tags, thumbnail-free centered KeySystem, draggable KeySystem mode, multi-URL Get Key chooser, and HSV ColorPicker refinements.
+-- V1.6.5: square Minimize/Close buttons, and a draggable FPS/GPU/Ping monitor via Window:CreateFPS.
 -- Design reference: file_00000000873c81fabe5fe0b2b93734d0.png
 -- This uploaded image is the visual reference for the DarkyUI main UI style.
 --
@@ -45,6 +46,21 @@ local DarkyUIGen2 = {}
 --                Selecting a preset updates the shared accent color used by toggles, sliders, accent borders/icons, and aura.
 --   ProgressBar = startup progress {Min, Max, Default} + optional UserList verification.
 --   Input    = Type "Default" or "Textarea"; Placeholder supported.
+--
+-- Window:CreateFPS({...})  One rectangle box showing FPS / GPU / Ping.
+--   Title = "FPS UI"        Box header text.
+--   ShowFPS = true           Show live FPS row.
+--   ShowGPU = true           Show GPU memory usage row.
+--   ShowPings = true         Show ping (ms) row.
+--   Draggable = true         Lets the user drag the box anywhere on screen.
+--   Example:
+--     Window:CreateFPS({
+--         Title = "FPS UI",
+--         ShowFPS = true,
+--         ShowGPU = true,
+--         ShowPings = true,
+--         Draggable = true,
+--     })
 --
 -- Desc is displayed under the element title when supplied.
 -- SERVICES
