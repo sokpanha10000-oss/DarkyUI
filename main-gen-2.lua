@@ -1,6 +1,8 @@
--- DarkyUI V1.6.5 | Rework Mode + HSV ColorPicker + Tags + KeySystem Rework
+-- DarkyUI V1.6.7 | Rework Mode + HSV ColorPicker + Tags + KeySystem Rework
 -- v1.6 rework: dual square Tags, thumbnail-free centered KeySystem, draggable KeySystem mode, multi-URL Get Key chooser, and HSV ColorPicker refinements.
 -- V1.6.5: square Minimize/Close buttons, and a draggable FPS/GPU/Ping monitor via Window:CreateFPS.
+-- V1.6.6: fixed button spam-click shrink and Tags overlapping long titles; added Dark, Daker, SuperDarker, Gold themes; every theme now has Accent3.
+-- V1.6.7: renamed Daker theme to Darker; added Grey theme.
 -- Design reference: file_00000000873c81fabe5fe0b2b93734d0.png
 -- This uploaded image is the visual reference for the DarkyUI main UI style.
 --
@@ -19,7 +21,10 @@ local DarkyUIGen2 = {}
 --   Subtitle = "..."                      Small subtitle.
 --   Folder = "MySuperHub"                 Storage folder.
 --   Size = UDim2.fromOffset(550, 350)     Window size.
---   Theme = "BlueSky"                     Window theme.
+--   Theme = "BlueSky"                     Window theme. Also: Red, White, Yellow,
+--                                          Green, Purple, Orange, Dark, Darker,
+--                                          SuperDarker, Gold, Grey. Every theme
+--                                          carries Accent / Accent2 / Accent3.
 --   Transparent = true                    Whole main UI surfaces at 0.50 transparency; false = fully opaque/dark.
 --   Resizable = true                      Enables resize handle.
 --   SideBarWidth = 200                    Left tab-menu width.
@@ -104,36 +109,83 @@ local THEMES = {
     Red = {
         Accent = Color3.fromRGB(210, 40, 55),
         Accent2 = Color3.fromRGB(240, 70, 85),
+        Accent3 = Color3.fromRGB(255, 130, 140),
     },
 
     BlueSky = {
         Accent = Color3.fromRGB(45, 105, 245),
         Accent2 = Color3.fromRGB(80, 140, 255),
+        Accent3 = Color3.fromRGB(140, 190, 255),
     },
 
     White = {
         Accent = Color3.fromRGB(190, 190, 200),
         Accent2 = Color3.fromRGB(235, 235, 242),
+        Accent3 = Color3.fromRGB(255, 255, 255),
     },
 
     Yellow = {
         Accent = Color3.fromRGB(220, 165, 25),
         Accent2 = Color3.fromRGB(245, 195, 55),
+        Accent3 = Color3.fromRGB(255, 220, 120),
     },
 
     Green = {
         Accent = Color3.fromRGB(30, 175, 90),
         Accent2 = Color3.fromRGB(65, 210, 120),
+        Accent3 = Color3.fromRGB(130, 235, 175),
     },
 
     Purple = {
         Accent = Color3.fromRGB(120, 65, 215),
         Accent2 = Color3.fromRGB(155, 95, 250),
+        Accent3 = Color3.fromRGB(200, 160, 255),
     },
 
     Orange = {
         Accent = Color3.fromRGB(220, 100, 30),
         Accent2 = Color3.fromRGB(245, 135, 55),
+        Accent3 = Color3.fromRGB(255, 175, 110),
+    },
+
+    -- Muted charcoal accent, one notch darker than the neutral White
+    -- theme. Reads as understated steel-gray rather than a bold color.
+    Dark = {
+        Accent = Color3.fromRGB(80, 82, 90),
+        Accent2 = Color3.fromRGB(110, 113, 122),
+        Accent3 = Color3.fromRGB(150, 153, 163),
+    },
+
+    -- A shade darker than Dark: low-contrast graphite, for a stealthier
+    -- look than the default themes.
+    Darker = {
+        Accent = Color3.fromRGB(52, 54, 60),
+        Accent2 = Color3.fromRGB(75, 78, 86),
+        Accent3 = Color3.fromRGB(105, 108, 118),
+    },
+
+    -- Darkest of the three, nearly black-on-black with just enough
+    -- lift in Accent2/Accent3 to stay readable against COLORS.Background.
+    SuperDarker = {
+        Accent = Color3.fromRGB(30, 31, 35),
+        Accent2 = Color3.fromRGB(48, 50, 56),
+        Accent3 = Color3.fromRGB(70, 72, 80),
+    },
+
+    -- Warm metallic gold family: deep gold base, brighter gold highlight,
+    -- pale champagne third shade for the lightest accents/gradients.
+    Gold = {
+        Accent = Color3.fromRGB(190, 145, 40),
+        Accent2 = Color3.fromRGB(230, 180, 70),
+        Accent3 = Color3.fromRGB(250, 220, 150),
+    },
+
+    -- Flat neutral gray, no warm/cool tint (distinct from Dark's slightly
+    -- warm steel-gray). A true middle gray for a clean, minimal look.
+    Grey = {
+        Accent = Color3.fromRGB(120, 120, 120),
+        Accent2 = Color3.fromRGB(150, 150, 150),
+        Accent3 = Color3.fromRGB(185, 185, 185),
     },
 }
 
@@ -148,6 +200,7 @@ DarkyUIGen2._ProgressComplete = false
 DarkyUIGen2._ThemeObjects = {}
 DarkyUIGen2._AccentOverride = nil
 DarkyUIGen2._AccentOverride2 = nil
+DarkyUIGen2._AccentOverride3 = nil
 DarkyUIGen2._ColorpickerAccentActive = false
 DarkyUIGen2._OpenColorpickerPopup = nil
 -- FLAG REGISTRY
@@ -986,6 +1039,7 @@ local function CurrentTheme()
         return {
             Accent = DarkyUIGen2._AccentOverride,
             Accent2 = DarkyUIGen2._AccentOverride2 or DarkyUIGen2._AccentOverride,
+            Accent3 = DarkyUIGen2._AccentOverride3 or DarkyUIGen2._AccentOverride2 or DarkyUIGen2._AccentOverride,
         }
     end
 
@@ -1002,6 +1056,7 @@ local function ApplyAccentOverride(color)
     DarkyUIGen2._ColorpickerAccentActive = true
     DarkyUIGen2._AccentOverride = color
     DarkyUIGen2._AccentOverride2 = color:Lerp(Color3.fromRGB(255, 255, 255), 0.22)
+    DarkyUIGen2._AccentOverride3 = color:Lerp(Color3.fromRGB(255, 255, 255), 0.45)
 
     local colors = CurrentTheme()
 
@@ -1039,8 +1094,8 @@ local function ResolveStyleColor(value, fallback)
         Purple = THEMES.Purple.Accent,
         Orange = THEMES.Orange.Accent,
         Black = Color3.fromRGB(5, 5, 7),
-        Gray = Color3.fromRGB(70, 70, 78),
-        Grey = Color3.fromRGB(70, 70, 78),
+        Gray = THEMES.Grey.Accent,
+        Grey = THEMES.Grey.Accent,
     }
 
     local lower = value:lower()
@@ -1236,6 +1291,7 @@ function DarkyUIGen2:SetTheme(name)
     DarkyUIGen2._ColorpickerAccentActive = false
     DarkyUIGen2._AccentOverride = nil
     DarkyUIGen2._AccentOverride2 = nil
+    DarkyUIGen2._AccentOverride3 = nil
 
     local colors = CurrentTheme()
 
