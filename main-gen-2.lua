@@ -657,17 +657,27 @@ local function ClickPop(object)
         return
     end
 
-    local originalSize = object.Size
+    -- Cache the true base size the first time this object is popped, and
+    -- always shrink from / restore to that cached size afterward. Reading
+    -- object.Size directly here breaks under rapid/spam clicking: a second
+    -- click landing mid-animation would capture the already-shrunk size as
+    -- "original," and each subsequent click would ratchet the button
+    -- smaller and smaller until it disappears.
+    local baseSize = object:GetAttribute("DarkyBaseSize")
+    if baseSize == nil then
+        baseSize = object.Size
+        object:SetAttribute("DarkyBaseSize", baseSize)
+    end
 
     Tween(
         object,
         FAST,
         {
             Size = UDim2.new(
-                originalSize.X.Scale,
-                originalSize.X.Offset - 3,
-                originalSize.Y.Scale,
-                originalSize.Y.Offset - 3
+                baseSize.X.Scale,
+                baseSize.X.Offset - 3,
+                baseSize.Y.Scale,
+                baseSize.Y.Offset - 3
             )
         }
     )
@@ -676,7 +686,7 @@ local function ClickPop(object)
         Tween(
             object,
             POP,
-            { Size = originalSize }
+            { Size = baseSize }
         )
     end)
 end
@@ -2875,6 +2885,33 @@ function DarkyUIGen2:CreateWindow(config)
         ZIndex = 23,
     })
 
+    -- Tracks the current tag row's width so the title-change watcher below
+    -- can reposition without needing CreateTag to run again.
+    local currentTagWidth = 0
+
+    local function RepositionTagHolder()
+        if not tagHolder.Visible then
+            return
+        end
+        -- Long titles can push TextBounds.X far enough that tags would land
+        -- underneath the search bar / minimize / close buttons on the
+        -- right, or even overlap the title text itself. Clamp so tags
+        -- always sit in a safe reserved lane, moved next to the title,
+        -- never on top of it.
+        local x = 58 + titleLabel.TextBounds.X + 8
+        local maxX = top.AbsoluteSize.X > 0
+            and (top.AbsoluteSize.X - currentTagWidth - 215)
+            or 330
+        x = math.clamp(x, 58, math.max(58, maxX))
+        tagHolder.Position = UDim2.fromOffset(x, 8)
+    end
+
+    -- Keep tags glued to the title as it changes later (SetTitle, or a
+    -- differently-sized title supplied at creation) instead of freezing at
+    -- whatever position was true the moment CreateTag first ran.
+    titleLabel:GetPropertyChangedSignal("Text"):Connect(RepositionTagHolder)
+    top:GetPropertyChangedSignal("AbsoluteSize"):Connect(RepositionTagHolder)
+
     function Window:CreateTag(tagConfig)
         tagConfig = tagConfig or {}
         for _, child in ipairs(tagHolder:GetChildren()) do child:Destroy() end
@@ -2923,7 +2960,6 @@ function DarkyUIGen2:CreateWindow(config)
             return badge
         end
 
-        local x = 58 + titleLabel.TextBounds.X + 8
         local titleBadge = makeBadge(titleWidth, tagTitle, titleColor, tagConfig.TitleIcon)
         titleBadge.Position = UDim2.fromOffset(0,0)
 
@@ -2932,9 +2968,10 @@ function DarkyUIGen2:CreateWindow(config)
             subtitleBadge.Position = UDim2.fromOffset(titleWidth + gap, 0)
         end
 
+        currentTagWidth = totalWidth
         tagHolder.Size = UDim2.fromOffset(totalWidth, 20)
-        tagHolder.Position = UDim2.fromOffset(x, 8)
         tagHolder.Visible = true
+        RepositionTagHolder()
         return self
     end
 
