@@ -75,6 +75,7 @@ local COLORS = {
 
     Border = Color3.fromRGB(38, 38, 46),
     Danger = Color3.fromRGB(225, 60, 72),
+    Success = Color3.fromRGB(45, 175, 95),
     Info = Color3.fromRGB(60, 115, 250),
     Warning = Color3.fromRGB(235, 175, 60),
     White = Color3.fromRGB(255, 255, 255),
@@ -2657,6 +2658,7 @@ function DarkyUIGen2:CreateWindow(config)
             Position = UDim2.fromOffset(1, 1),
             Size = UDim2.new(1, -2, 0, 57),
             BackgroundColor3 = COLORS.Background2,
+            BackgroundTransparency = 0.4,
             BorderSizePixel = 0,
             ZIndex = 20,
         }
@@ -2672,6 +2674,7 @@ function DarkyUIGen2:CreateWindow(config)
             Position = UDim2.new(0, 0, 1, -11),
             Size = UDim2.new(1, 0, 0, 11),
             BackgroundColor3 = COLORS.Background2,
+            BackgroundTransparency = 0.4,
             BorderSizePixel = 0,
             ZIndex = 20,
         }
@@ -3452,7 +3455,7 @@ function DarkyUIGen2:CreateWindow(config)
                 Parent = popup,
                 Position = UDim2.new(0, 15, 1, -46),
                 Size = UDim2.new(0.5, -20, 0, 32),
-                BackgroundColor3 = COLORS.Info,
+                BackgroundColor3 = COLORS.Success,
                 BorderSizePixel = 0,
                 AutoButtonColor = false,
                 Text = "",
