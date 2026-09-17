@@ -1767,6 +1767,31 @@ local function MakeKeySystem(config)
     local getKeyButton = KeyButton(190, 120, "Get Key", "key", COLORS.Panel)
     local submitButton = KeyButton(362, 120, "Submit", "arrow-right", CurrentTheme().Accent)
 
+    local dragBar
+    if draggable then
+        dragBar = New("TextButton", {
+            Parent = main,
+            Name = "DragBar",
+            AnchorPoint = Vector2.new(0.5, 0),
+            Position = UDim2.new(0.5, 0, 0, 261),
+            Size = UDim2.fromOffset(60, 7),
+            BackgroundColor3 = COLORS.SubText,
+            BackgroundTransparency = 0.4,
+            BorderSizePixel = 0,
+            AutoButtonColor = false,
+            Text = "",
+            ZIndex = 2008,
+        })
+        AddCorner(dragBar, 4)
+
+        dragBar.MouseEnter:Connect(function()
+            Tween(dragBar, FAST, { BackgroundTransparency = 0.1 })
+        end)
+        dragBar.MouseLeave:Connect(function()
+            Tween(dragBar, FAST, { BackgroundTransparency = 0.4 })
+        end)
+    end
+
     local urlDropdown
     local urlOpen = false
 
@@ -1850,19 +1875,29 @@ local function MakeKeySystem(config)
 
     local dragStart, startPos, dragging = nil, nil, false
     if draggable then
-        header.Active = true
-        header.InputBegan:Connect(function(input)
+        local function beginDrag(input)
             if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
                 dragging = true
                 dragStart = input.Position
                 startPos = main.Position
             end
-        end)
-        header.InputEnded:Connect(function(input)
+        end
+        local function endDrag(input)
             if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
                 dragging = false
             end
-        end)
+        end
+
+        header.Active = true
+        header.InputBegan:Connect(beginDrag)
+        header.InputEnded:Connect(endDrag)
+
+        if dragBar then
+            dragBar.Active = true
+            dragBar.InputBegan:Connect(beginDrag)
+            dragBar.InputEnded:Connect(endDrag)
+        end
+
         UserInputService.InputChanged:Connect(function(input)
             if not dragging then return end
             if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
@@ -2431,7 +2466,7 @@ function DarkyUIGen2:CreateWindow(config)
     -- false = fully opaque/super-dark UI; true = 0.50 translucent UI.
     -- The same value is inherited by every surface created under Main,
     -- including SearchBar, tab menu, sections and element panels.
-    Window.SurfaceTransparency = Window.Transparent and 0.50 or 0.00
+    Window.SurfaceTransparency = Window.Transparent and 0.30 or 0.00
     Window.Resizable = config.Resizable == true
 
     Window.SideBarWidth = math.clamp(
@@ -2658,7 +2693,6 @@ function DarkyUIGen2:CreateWindow(config)
             Position = UDim2.fromOffset(1, 1),
             Size = UDim2.new(1, -2, 0, 57),
             BackgroundColor3 = COLORS.Background2,
-            BackgroundTransparency = 0.4,
             BorderSizePixel = 0,
             ZIndex = 20,
         }
@@ -2674,7 +2708,6 @@ function DarkyUIGen2:CreateWindow(config)
             Position = UDim2.new(0, 0, 1, -11),
             Size = UDim2.new(1, 0, 0, 11),
             BackgroundColor3 = COLORS.Background2,
-            BackgroundTransparency = 0.4,
             BorderSizePixel = 0,
             ZIndex = 20,
         }
@@ -2958,13 +2991,15 @@ function DarkyUIGen2:CreateWindow(config)
             Parent = top,
             Position = UDim2.new(1, -75, 0, 9),
             Size = UDim2.fromOffset(30, 38),
-            BackgroundTransparency = 1,
+            BackgroundColor3 = COLORS.Success,
             BorderSizePixel = 0,
             AutoButtonColor = false,
             Text = "",
             ZIndex = 30,
         }
     )
+
+    AddCorner(minimizeButton, 8)
 
     Icon(
         minimizeButton,
@@ -2980,13 +3015,15 @@ function DarkyUIGen2:CreateWindow(config)
             Parent = top,
             Position = UDim2.new(1, -40, 0, 9),
             Size = UDim2.fromOffset(30, 38),
-            BackgroundTransparency = 1,
+            BackgroundColor3 = COLORS.Danger,
             BorderSizePixel = 0,
             AutoButtonColor = false,
             Text = "",
             ZIndex = 30,
         }
     )
+
+    AddCorner(closeButton, 8)
 
     local closeIcon = Icon(
         closeButton,
@@ -2997,7 +3034,7 @@ function DarkyUIGen2:CreateWindow(config)
     )
 
     if closeIcon then
-        closeIcon.ImageColor3 = COLORS.Danger
+        closeIcon.ImageColor3 = COLORS.White
     end
     -- RESIZE HANDLE
     if Window.Resizable then
