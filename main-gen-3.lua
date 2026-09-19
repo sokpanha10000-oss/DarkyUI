@@ -4,7 +4,7 @@
 -- Experimental beta: keep a copy of this file separate from DarkyUI-Gen-2.lua.
 
 -- DarkyUI-Gen-3 Beta | Rework Mode + HSV ColorPicker + Tags + KeySystem Rework
--- Gen-3 v1.0.0: reworked premium themes, live dark-tinted borders, larger BorderScale, fixed Square UI exceptions, and white-shine theme details.
+-- Gen-3 v1.0.0: reworked premium themes, large dark-tinted borders, fixed Square UI exceptions, and layered white-shine theme details.
 -- v1.6 rework: dual square Tags, thumbnail-free centered KeySystem, draggable KeySystem mode, multi-URL Get Key chooser, and HSV ColorPicker refinements.
 -- V1.6.5: square Minimize/Close buttons, and a draggable FPS/GPU/Ping monitor via Window:CreateFPS.
 -- V1.6.6: fixed button spam-click shrink and Tags overlapping long titles; added Dark, Daker, SuperDarker, Gold themes; every theme now has Accent3.
@@ -24,6 +24,9 @@
 --     /  / /\ \  \_|/_\ \   _  _\ \  \\  \  \  \ \\  \  \ \   __  \      /  /_/__\ \  \_\ \ \  \\  \\ \  \\  \  \ \  \____\ \  \\  \ \  \ \  \     |\________\ \_______\ \__\\ _\\ \_______\  \ \_______\ \_______\ \__\ \__\     \|_______|\|_______|\|__|\|__|\|_______|   \|_______|\|_______|\|__|\|__|
 --
 -- Reworked Roblox UI library.
+-- Gen-3 chrome: large dark outer borders, square/corner component styling, and
+-- layered soft specular highlights on the window chrome. The floating button
+-- is intentionally exempt from the shine effect and always keeps corner shape.
 -- Core: Window / Tabs / Sections / Button / Toggle / Slider / Input / Dropdown / Colorpicker / ProgressBar.
 -- Colorpicker presets can override the current accent color without changing Border/Blur settings.
 
@@ -36,12 +39,12 @@ local DarkyUIGen3 = {}
 --   Folder = "MySuperHub"                 Storage folder.
 --   Size = UDim2.fromOffset(560, 360)     Window size.
 --   UIscale = "0.7"                       UIScale factor, set right in CreateWindow.
---   BorderScale = 2                       Larger themed border thickness. 1-4 supported.
+--   BorderScale = 3                       Larger dark-themed border thickness. 1-4 supported.
 --                                          Any number or numeric string, e.g. "0.45",
 --                                          0.7, 1.25. Clamped to 0.3 - 2.0 so the UI can
 --                                          never render unusably tiny or huge. Use
 --                                          Window:SetScale(value) to change it later.
---                                          Window:SetBorderScale(value) changes border thickness 1-4 live.
+--                                          Window:SetBorderScale(value) changes border thickness 1-4 live; default = 3.
 --
 --   Theme = "BlueSky"                     Window theme. Also: Red, White, Yellow,
 --                                          Green, Purple, Orange, Dark, Darker,
@@ -125,7 +128,7 @@ local MAX_SCALE = 2.0
 local GEN3_STYLE_ENABLED = true
 local GEN3_UI_SHAPE = "Square"
 local GEN3_TEXT_SCALE = 1.0
-local GEN3_BORDER_SCALE = 2.0
+local GEN3_BORDER_SCALE = 3.0
 local GEN3_VERSION = "1.0"
 
 local function NormalizeUIShape(value)
@@ -955,7 +958,7 @@ local function Stroke(parent, color, thickness)
     local stroke = New("UIStroke", {
         Parent = parent,
         Color = initialColor,
-        Thickness = baseThickness * (GEN3_BORDER_SCALE or 2),
+        Thickness = baseThickness * (GEN3_BORDER_SCALE or 3),
         ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
     })
     stroke:SetAttribute("DarkyBaseThickness", baseThickness)
@@ -965,7 +968,7 @@ local function Stroke(parent, color, thickness)
         RegisterTheme(function(_, colors)
             if stroke and stroke.Parent then
                 stroke.Color = colors.Border or colors.Accent:Lerp(COLORS.Background, 0.45)
-                stroke.Thickness = baseThickness * (GEN3_BORDER_SCALE or 2)
+                stroke.Thickness = baseThickness * (GEN3_BORDER_SCALE or 3)
             end
         end)
     end
@@ -1095,6 +1098,69 @@ local function CreateAuraFor(gui, target, colorProvider, options)
         if aura then aura:Destroy() end
     end
     sync(); return object
+end
+
+-- Soft layered highlight used by Gen-3's main chrome. Roblox GUI objects
+-- do not provide a per-object blur shader, so this builds a blur-like
+-- specular reflection from several translucent gradient layers. It stays
+-- white/shiny on every theme without changing the darker border color.
+local function AddRealisticShine(parent, position, size, zIndex)
+    if not parent then return nil end
+
+    local holder = New("Frame", {
+        Parent = parent,
+        Name = "RealisticShine",
+        Position = position,
+        Size = size,
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        ClipsDescendants = true,
+        ZIndex = zIndex or 12,
+    })
+
+    local function layer(y, h, transparency, z)
+        local frame = New("Frame", {
+            Parent = holder,
+            Position = UDim2.fromOffset(0, y),
+            Size = UDim2.new(1, 0, 0, h),
+            BackgroundColor3 = COLORS.White,
+            BackgroundTransparency = 0,
+            BorderSizePixel = 0,
+            ZIndex = z,
+        })
+
+        New("UIGradient", {
+            Parent = frame,
+            Rotation = 90,
+            Color = ColorSequence.new({
+                ColorSequenceKeypoint.new(0, COLORS.White),
+                ColorSequenceKeypoint.new(0.5, COLORS.White),
+                ColorSequenceKeypoint.new(1, COLORS.White),
+            }),
+            Transparency = NumberSequence.new({
+                NumberSequenceKeypoint.new(0, math.clamp(transparency + 0.18, 0, 1)),
+                NumberSequenceKeypoint.new(0.5, transparency),
+                NumberSequenceKeypoint.new(1, math.clamp(transparency + 0.22, 0, 1)),
+            }),
+        })
+
+        return frame
+    end
+
+    local glow = layer(0, 9, 0.78, (zIndex or 12))
+    local mid = layer(2, 5, 0.52, (zIndex or 12) + 1)
+    local core = layer(3, 1, 0.12, (zIndex or 12) + 2)
+
+    RegisterTheme(function(_, colors)
+        local shine = colors.Shine or COLORS.White
+        for _, frame in ipairs({glow, mid, core}) do
+            if frame and frame.Parent then
+                frame.BackgroundColor3 = shine
+            end
+        end
+    end)
+
+    return holder
 end
 -- HTTP / LOADSTRING
 local function HttpGet(url)
@@ -1486,7 +1552,7 @@ local function AddSectionAccent(parent)
 end
 
 function DarkyUIGen3:SetBorderScale(value)
-    local scale = math.clamp(tonumber(value) or 2, 1, 4)
+    local scale = math.clamp(tonumber(value) or 3, 1, 4)
     GEN3_BORDER_SCALE = scale
 
     local window = DarkyUIGen3._Window
@@ -2109,7 +2175,7 @@ local function MakeKeySystem(config)
             AnchorPoint = Vector2.new(0.5, 0),
             Position = UDim2.new(0.5, 0, 1, 10),
             Size = UDim2.fromOffset(46, 10),
-            BackgroundColor3 = COLORS.Panel,
+            BackgroundColor3 = COLORS.Panel2,
             BorderSizePixel = 0,
             AutoButtonColor = false,
             Text = "",
@@ -2876,7 +2942,7 @@ function DarkyUIGen3:CreateWindow(config)
         and DarkyUIGen3._KeySystem
         or nil
 
-    Window.BorderScale = math.clamp(tonumber(config.BorderScale) or 2, 1, 4)
+    Window.BorderScale = math.clamp(tonumber(config.BorderScale) or 3, 1, 4)
     GEN3_BORDER_SCALE = Window.BorderScale
 
     if config.Border ~= nil then
@@ -2937,7 +3003,7 @@ function DarkyUIGen3:CreateWindow(config)
             AnchorPoint = Vector2.new(0, 0.5),
             Position = UDim2.new(0, 18, 0.5, 0),
             Size = UDim2.fromOffset(52, 52),
-            BackgroundColor3 = COLORS.Panel,
+            BackgroundColor3 = COLORS.Panel2,
             BorderSizePixel = 0,
             AutoButtonColor = false,
             Active = true,
@@ -2974,21 +3040,6 @@ function DarkyUIGen3:CreateWindow(config)
         COLORS.Border,
         1
     )
-
-    local floatingShine = New("Frame", {
-        Parent = floating,
-        Position = UDim2.fromOffset(8, 2),
-        Size = UDim2.new(1, -16, 0, 1),
-        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-        BackgroundTransparency = 0.45,
-        BorderSizePixel = 0,
-        ZIndex = 502,
-    })
-    RegisterTheme(function(_, colors)
-        if floatingShine and floatingShine.Parent then
-            floatingShine.BackgroundColor3 = colors.Shine or COLORS.White
-        end
-    end)
 
     local floatingIcon = IconOrBadge(
         floating,
@@ -3059,7 +3110,7 @@ function DarkyUIGen3:CreateWindow(config)
     AddCorner(main, 12)
     local mainStroke = Stroke(
         main,
-        Window.Border and CurrentTheme().Accent or COLORS.Border,
+        COLORS.Border,
         1
     )
     mainStroke.Transparency = Window.Border and 0 or 1
@@ -3071,6 +3122,16 @@ function DarkyUIGen3:CreateWindow(config)
         })
     end
     Window.Aura = mainAura
+
+    -- A soft reflection along the upper shell gives the Gen-3 body a
+    -- realistic glass/chrome highlight while keeping its border dark.
+    local mainSoftShine = AddRealisticShine(
+        main,
+        UDim2.fromOffset(7, 1),
+        UDim2.new(1, -14, 0, 10),
+        11
+    )
+    Window.MainSoftShine = mainSoftShine
     -- TOP BAR
     local top = New(
         "Frame",
@@ -3117,6 +3178,13 @@ function DarkyUIGen3:CreateWindow(config)
         ZIndex = 25,
     })
 
+    local topSoftShine = AddRealisticShine(
+        top,
+        UDim2.fromOffset(7, 0),
+        UDim2.new(1, -14, 0, 10),
+        24
+    )
+
     New(
         "Frame",
         {
@@ -3138,9 +3206,9 @@ function DarkyUIGen3:CreateWindow(config)
 
     RegisterTheme(function(_, colors)
         if mainStroke and mainStroke.Parent then
-            mainStroke.Color = Window.Border and colors.Accent or colors.Border
+            mainStroke.Color = colors.Border or COLORS.Border
             mainStroke.Transparency = Window.Border and 0 or 1
-            mainStroke.Thickness = 1 * (Window.BorderScale or 2)
+            mainStroke.Thickness = 1 * (Window.BorderScale or 3)
         end
         if mainAura and mainAura.Root and mainAura.Root.Parent then
             mainAura:SetColor(colors.Accent)
@@ -9064,7 +9132,7 @@ end
 --     Size = UDim2.fromOffset(560,360),
 --     Folder = "MySuperHub",
 --     UIShape = "Square", -- "Square" or "Corner"; "Sqaure" also accepted
---     BorderScale = 2,
+--     BorderScale = 3,
 --     UIscale = "0.7",
 --     TopBar = "BlueSky", -- changes the window top bar only
 --     TextScale = "1.0",
