@@ -4,6 +4,7 @@
 -- Experimental beta: keep a copy of this file separate from DarkyUI-Gen-2.lua.
 
 -- DarkyUI-Gen-3 Beta | Rework Mode + HSV ColorPicker + Tags + KeySystem Rework
+-- V1.8.0-hotfix: fixed theme-name resolver scope, live text-scale tracking, and themed control borders.
 -- v1.6 rework: dual square Tags, thumbnail-free centered KeySystem, draggable KeySystem mode, multi-URL Get Key chooser, and HSV ColorPicker refinements.
 -- V1.6.5: square Minimize/Close buttons, and a draggable FPS/GPU/Ping monitor via Window:CreateFPS.
 -- V1.6.6: fixed button spam-click shrink and Tags overlapping long titles; added Dark, Daker, SuperDarker, Gold themes; every theme now has Accent3.
@@ -139,12 +140,22 @@ local function ThemeNameOrDefault(value, fallback)
     if typeof(value) ~= "string" then
         return fallback
     end
+
+    -- THEMES is declared later in this file. Resolve it through the
+    -- library table at call-time so CreateWindow/element theme APIs do
+    -- not accidentally read a nil global named THEMES.
+    local themes = DarkyUIGen3.Themes
+    if type(themes) ~= "table" then
+        return fallback
+    end
+
     local lower = value:lower()
-    for name in pairs(THEMES) do
-        if name:lower() == lower then
+    for name in pairs(themes) do
+        if tostring(name):lower() == lower then
             return name
         end
     end
+
     return fallback
 end
 
@@ -750,18 +761,28 @@ local POP = TweenInfo.new(
 local function New(className, properties)
     local object = Instance.new(className)
     local props = properties or {}
+    local isTextObject = className == "TextLabel"
+        or className == "TextBox"
+        or className == "TextButton"
+    local baseTextSize = isTextObject and props.TextSize or nil
 
     if GEN3_STYLE_ENABLED
-        and (className == "TextLabel" or className == "TextBox" or className == "TextButton")
-        and type(props.TextSize) == "number"
+        and isTextObject
+        and type(baseTextSize) == "number"
         and GEN3_TEXT_SCALE ~= 1 then
         props = table.clone(props)
-        props.TextSize = math.max(1, math.floor((props.TextSize * GEN3_TEXT_SCALE) + 0.5))
+        props.TextSize = math.max(1, math.floor((baseTextSize * GEN3_TEXT_SCALE) + 0.5))
     end
 
     for property, value in pairs(props) do
         pcall(function()
             object[property] = value
+        end)
+    end
+
+    if type(baseTextSize) == "number" then
+        pcall(function()
+            object:SetAttribute("DarkyBaseTextSize", baseTextSize)
         end)
     end
 
@@ -4175,6 +4196,26 @@ function DarkyUIGen3:CreateWindow(config)
         return scale
     end
 
+    function Window:SetTextScale(value)
+        local scale = ClampTextScale(value)
+        self.TextScale = scale
+        GEN3_TEXT_SCALE = scale
+
+        if self.Main and self.Main.Parent then
+            for _, descendant in ipairs(self.Main:GetDescendants()) do
+                local baseSize = descendant:GetAttribute("DarkyBaseTextSize")
+                if typeof(baseSize) == "number"
+                    and (descendant:IsA("TextLabel")
+                        or descendant:IsA("TextBox")
+                        or descendant:IsA("TextButton")) then
+                    descendant.TextSize = math.max(1, math.floor((baseSize * scale) + 0.5))
+                end
+            end
+        end
+
+        return scale
+    end
+
     function Window:SetTopBar(value)
         local selected = ThemeNameOrDefault(value, self.TopBarTheme or "BlueSky")
         self.TopBarTheme = selected
@@ -6287,6 +6328,7 @@ function DarkyUIGen3:CreateWindow(config)
                 end
 
                 local control
+                local controlStroke
 
                 if isCheckbox then
                     control = New(
@@ -6306,7 +6348,7 @@ function DarkyUIGen3:CreateWindow(config)
                     )
 
                     AddCorner(control, 5)
-                    Stroke(control, COLORS.Border, 1)
+                    controlStroke = Stroke(control, COLORS.Border, 1)
                 else
                     control = New(
                         "TextButton",
@@ -6325,7 +6367,7 @@ function DarkyUIGen3:CreateWindow(config)
                     )
 
                     AddCorner(control, 8)
-                    Stroke(control, COLORS.Border, 1)
+                    controlStroke = Stroke(control, COLORS.Border, 1)
                 end
 
                 local iconOrKnob
@@ -6386,6 +6428,9 @@ function DarkyUIGen3:CreateWindow(config)
                     if isCheckbox then
                         control.BackgroundColor3 =
                             state and accent or COLORS.Panel2
+                        if controlStroke then
+                            controlStroke.Color = state and accent or COLORS.Border
+                        end
                         if iconOrKnob then
                             iconOrKnob.ImageTransparency =
                                 state and 0 or 1
@@ -6396,6 +6441,10 @@ function DarkyUIGen3:CreateWindow(config)
                             BackgroundColor3 =
                                 state and accent or COLORS.Panel2
                         })
+
+                        if controlStroke then
+                            controlStroke.Color = state and accent or COLORS.Border
+                        end
 
                         Tween(iconOrKnob, FAST, {
                             Position = state
@@ -6602,7 +6651,7 @@ function DarkyUIGen3:CreateWindow(config)
 
                 AddCorner(track, math.floor(trackHeight / 2))
 
-                Stroke(
+                local trackStroke = Stroke(
                     track,
                     COLORS.Border,
                     1
@@ -6750,6 +6799,9 @@ function DarkyUIGen3:CreateWindow(config)
                     track.BackgroundColor3 = accent
                     fill.BackgroundColor3 = accent
                     valueLabel.TextColor3 = accent2
+                    if trackStroke then
+                        trackStroke.Color = accent2
+                    end
                 end
 
                 RegisterTheme(updateTheme)
@@ -8809,7 +8861,7 @@ end
 --     Size = UDim2.fromOffset(560,360),
 --     Folder = "MySuperHub",
 --     UIShape = "Square", -- "Square" or "Corner"; "Sqaure" also accepted
---     UIScale = "0.7",
+--     UIscale = "0.7",
 --     TopBar = "BlueSky", -- changes the window top bar only
 --     TextScale = "1.0",
 --     Border = false,
