@@ -1,10 +1,10 @@
--- DarkyUI-Gen-3 Beta | independent beta branch
+-- DarkyUI-Gen-3 Beta v1.0 | independent beta branch
 -- Built from the latest uploaded DarkyUI-Gen-2 source. Gen-2 is left untouched and remains the stable rollback branch.
 -- Gen-3 adds the screenshot-inspired blue top bar, square/corner UIShape, UIScale, TextScale, TopBar-only theme, and per-element Theme/SliderTheme controls while preserving Gen-2 element behavior.
 -- Experimental beta: keep a copy of this file separate from DarkyUI-Gen-2.lua.
 
 -- DarkyUI-Gen-3 Beta | Rework Mode + HSV ColorPicker + Tags + KeySystem Rework
--- V1.8.0-hotfix: fixed theme-name resolver scope, live text-scale tracking, and themed control borders.
+-- Gen-3 v1.0.0: reworked premium themes, live dark-tinted borders, larger BorderScale, fixed Square UI exceptions, and white-shine theme details.
 -- v1.6 rework: dual square Tags, thumbnail-free centered KeySystem, draggable KeySystem mode, multi-URL Get Key chooser, and HSV ColorPicker refinements.
 -- V1.6.5: square Minimize/Close buttons, and a draggable FPS/GPU/Ping monitor via Window:CreateFPS.
 -- V1.6.6: fixed button spam-click shrink and Tags overlapping long titles; added Dark, Daker, SuperDarker, Gold themes; every theme now has Accent3.
@@ -36,15 +36,18 @@ local DarkyUIGen3 = {}
 --   Folder = "MySuperHub"                 Storage folder.
 --   Size = UDim2.fromOffset(560, 360)     Window size.
 --   UIscale = "0.7"                       UIScale factor, set right in CreateWindow.
+--   BorderScale = 2                       Larger themed border thickness. 1-4 supported.
 --                                          Any number or numeric string, e.g. "0.45",
 --                                          0.7, 1.25. Clamped to 0.3 - 2.0 so the UI can
 --                                          never render unusably tiny or huge. Use
 --                                          Window:SetScale(value) to change it later.
+--                                          Window:SetBorderScale(value) changes border thickness 1-4 live.
 --
 --   Theme = "BlueSky"                     Window theme. Also: Red, White, Yellow,
 --                                          Green, Purple, Orange, Dark, Darker,
---                                          SuperDarker, Gold, Grey. Every theme
---                                          carries Accent / Accent2 / Accent3.
+--                                          SuperDarker, Gold, Grey, Cyan, Rose.
+--                                          Every theme carries Accent / Accent2 /
+--                                          Accent3 / Border / Border2 / Glow / Shine.
 --   Transparent = true                    Whole main UI surfaces at 0.50 transparency; false = fully opaque/dark.
 --   Resizable = true                      Enables resize handle.
 --   SideBarWidth = 200                    Left tab-menu width.
@@ -122,6 +125,8 @@ local MAX_SCALE = 2.0
 local GEN3_STYLE_ENABLED = true
 local GEN3_UI_SHAPE = "Square"
 local GEN3_TEXT_SCALE = 1.0
+local GEN3_BORDER_SCALE = 2.0
+local GEN3_VERSION = "1.0"
 
 local function NormalizeUIShape(value)
     local lower = tostring(value or "Square"):lower()
@@ -193,90 +198,149 @@ local COLORS = {
 
 local THEMES = {
     Red = {
-        Accent = Color3.fromRGB(210, 40, 55),
-        Accent2 = Color3.fromRGB(240, 70, 85),
-        Accent3 = Color3.fromRGB(255, 130, 140),
+        Accent = Color3.fromRGB(235, 48, 70),
+        Accent2 = Color3.fromRGB(255, 83, 103),
+        Accent3 = Color3.fromRGB(255, 150, 164),
+        Border = Color3.fromRGB(92, 24, 34),
+        Border2 = Color3.fromRGB(135, 34, 48),
+        Glow = Color3.fromRGB(255, 48, 70),
+        Shine = Color3.fromRGB(255, 255, 255),
     },
 
     BlueSky = {
-        Accent = Color3.fromRGB(45, 105, 245),
-        Accent2 = Color3.fromRGB(80, 140, 255),
-        Accent3 = Color3.fromRGB(140, 190, 255),
+        Accent = Color3.fromRGB(55, 132, 255),
+        Accent2 = Color3.fromRGB(88, 172, 255),
+        Accent3 = Color3.fromRGB(155, 215, 255),
+        Border = Color3.fromRGB(25, 55, 98),
+        Border2 = Color3.fromRGB(35, 82, 145),
+        Glow = Color3.fromRGB(62, 151, 255),
+        Shine = Color3.fromRGB(255, 255, 255),
     },
 
     White = {
-        Accent = Color3.fromRGB(190, 190, 200),
-        Accent2 = Color3.fromRGB(235, 235, 242),
+        Accent = Color3.fromRGB(205, 218, 235),
+        Accent2 = Color3.fromRGB(230, 238, 248),
         Accent3 = Color3.fromRGB(255, 255, 255),
+        Border = Color3.fromRGB(77, 87, 104),
+        Border2 = Color3.fromRGB(112, 124, 144),
+        Glow = Color3.fromRGB(220, 230, 245),
+        Shine = Color3.fromRGB(255, 255, 255),
     },
 
     Yellow = {
-        Accent = Color3.fromRGB(220, 165, 25),
-        Accent2 = Color3.fromRGB(245, 195, 55),
-        Accent3 = Color3.fromRGB(255, 220, 120),
+        Accent = Color3.fromRGB(255, 190, 35),
+        Accent2 = Color3.fromRGB(255, 215, 72),
+        Accent3 = Color3.fromRGB(255, 235, 155),
+        Border = Color3.fromRGB(100, 70, 12),
+        Border2 = Color3.fromRGB(155, 106, 18),
+        Glow = Color3.fromRGB(255, 195, 38),
+        Shine = Color3.fromRGB(255, 255, 255),
     },
 
     Green = {
-        Accent = Color3.fromRGB(30, 175, 90),
-        Accent2 = Color3.fromRGB(65, 210, 120),
-        Accent3 = Color3.fromRGB(130, 235, 175),
+        Accent = Color3.fromRGB(38, 211, 133),
+        Accent2 = Color3.fromRGB(71, 235, 157),
+        Accent3 = Color3.fromRGB(153, 255, 205),
+        Border = Color3.fromRGB(17, 87, 58),
+        Border2 = Color3.fromRGB(22, 132, 82),
+        Glow = Color3.fromRGB(38, 220, 137),
+        Shine = Color3.fromRGB(255, 255, 255),
     },
 
     Purple = {
-        Accent = Color3.fromRGB(120, 65, 215),
-        Accent2 = Color3.fromRGB(155, 95, 250),
-        Accent3 = Color3.fromRGB(200, 160, 255),
+        Accent = Color3.fromRGB(148, 83, 255),
+        Accent2 = Color3.fromRGB(181, 114, 255),
+        Accent3 = Color3.fromRGB(220, 184, 255),
+        Border = Color3.fromRGB(56, 28, 105),
+        Border2 = Color3.fromRGB(88, 44, 165),
+        Glow = Color3.fromRGB(153, 79, 255),
+        Shine = Color3.fromRGB(255, 255, 255),
     },
 
     Orange = {
-        Accent = Color3.fromRGB(220, 100, 30),
-        Accent2 = Color3.fromRGB(245, 135, 55),
-        Accent3 = Color3.fromRGB(255, 175, 110),
+        Accent = Color3.fromRGB(255, 126, 48),
+        Accent2 = Color3.fromRGB(255, 157, 74),
+        Accent3 = Color3.fromRGB(255, 207, 155),
+        Border = Color3.fromRGB(101, 47, 16),
+        Border2 = Color3.fromRGB(153, 69, 22),
+        Glow = Color3.fromRGB(255, 122, 43),
+        Shine = Color3.fromRGB(255, 255, 255),
     },
 
-    -- Muted charcoal accent, one notch darker than the neutral White
-    -- theme. Reads as understated steel-gray rather than a bold color.
     Dark = {
-        Accent = Color3.fromRGB(80, 82, 90),
-        Accent2 = Color3.fromRGB(110, 113, 122),
-        Accent3 = Color3.fromRGB(150, 153, 163),
+        Accent = Color3.fromRGB(107, 120, 143),
+        Accent2 = Color3.fromRGB(139, 154, 181),
+        Accent3 = Color3.fromRGB(190, 201, 220),
+        Border = Color3.fromRGB(38, 44, 55),
+        Border2 = Color3.fromRGB(60, 69, 84),
+        Glow = Color3.fromRGB(92, 105, 128),
+        Shine = Color3.fromRGB(255, 255, 255),
     },
 
-    -- A shade darker than Dark: low-contrast graphite, for a stealthier
-    -- look than the default themes.
     Darker = {
-        Accent = Color3.fromRGB(52, 54, 60),
-        Accent2 = Color3.fromRGB(75, 78, 86),
-        Accent3 = Color3.fromRGB(105, 108, 118),
+        Accent = Color3.fromRGB(77, 88, 105),
+        Accent2 = Color3.fromRGB(106, 120, 142),
+        Accent3 = Color3.fromRGB(156, 169, 191),
+        Border = Color3.fromRGB(25, 29, 36),
+        Border2 = Color3.fromRGB(44, 51, 62),
+        Glow = Color3.fromRGB(69, 80, 96),
+        Shine = Color3.fromRGB(255, 255, 255),
     },
 
-    -- Darkest of the three, nearly black-on-black with just enough
-    -- lift in Accent2/Accent3 to stay readable against COLORS.Background.
     SuperDarker = {
-        Accent = Color3.fromRGB(30, 31, 35),
-        Accent2 = Color3.fromRGB(48, 50, 56),
-        Accent3 = Color3.fromRGB(70, 72, 80),
+        Accent = Color3.fromRGB(50, 58, 70),
+        Accent2 = Color3.fromRGB(70, 81, 97),
+        Accent3 = Color3.fromRGB(116, 130, 149),
+        Border = Color3.fromRGB(15, 18, 23),
+        Border2 = Color3.fromRGB(30, 35, 43),
+        Glow = Color3.fromRGB(48, 57, 69),
+        Shine = Color3.fromRGB(255, 255, 255),
     },
 
-    -- Warm metallic gold family: deep gold base, brighter gold highlight,
-    -- pale champagne third shade for the lightest accents/gradients.
     Gold = {
-        Accent = Color3.fromRGB(190, 145, 40),
-        Accent2 = Color3.fromRGB(230, 180, 70),
-        Accent3 = Color3.fromRGB(250, 220, 150),
+        Accent = Color3.fromRGB(222, 170, 48),
+        Accent2 = Color3.fromRGB(244, 196, 76),
+        Accent3 = Color3.fromRGB(255, 232, 157),
+        Border = Color3.fromRGB(105, 72, 17),
+        Border2 = Color3.fromRGB(159, 107, 22),
+        Glow = Color3.fromRGB(227, 170, 47),
+        Shine = Color3.fromRGB(255, 255, 255),
     },
 
-    -- Flat neutral gray, no warm/cool tint (distinct from Dark's slightly
-    -- warm steel-gray). A true middle gray for a clean, minimal look.
     Grey = {
-        Accent = Color3.fromRGB(120, 120, 120),
-        Accent2 = Color3.fromRGB(150, 150, 150),
-        Accent3 = Color3.fromRGB(185, 185, 185),
+        Accent = Color3.fromRGB(133, 143, 157),
+        Accent2 = Color3.fromRGB(163, 173, 188),
+        Accent3 = Color3.fromRGB(210, 217, 227),
+        Border = Color3.fromRGB(52, 58, 68),
+        Border2 = Color3.fromRGB(79, 87, 100),
+        Glow = Color3.fromRGB(124, 135, 151),
+        Shine = Color3.fromRGB(255, 255, 255),
+    },
+
+    Cyan = {
+        Accent = Color3.fromRGB(35, 207, 224),
+        Accent2 = Color3.fromRGB(75, 231, 241),
+        Accent3 = Color3.fromRGB(166, 250, 255),
+        Border = Color3.fromRGB(14, 84, 92),
+        Border2 = Color3.fromRGB(18, 130, 143),
+        Glow = Color3.fromRGB(35, 213, 230),
+        Shine = Color3.fromRGB(255, 255, 255),
+    },
+
+    Rose = {
+        Accent = Color3.fromRGB(235, 82, 150),
+        Accent2 = Color3.fromRGB(255, 116, 176),
+        Accent3 = Color3.fromRGB(255, 188, 219),
+        Border = Color3.fromRGB(99, 31, 62),
+        Border2 = Color3.fromRGB(151, 45, 94),
+        Glow = Color3.fromRGB(236, 79, 149),
+        Shine = Color3.fromRGB(255, 255, 255),
     },
 }
 
 DarkyUIGen3.Themes = THEMES
 DarkyUIGen3.CurrentTheme = "BlueSky"
+DarkyUIGen3.Version = GEN3_VERSION
 DarkyUIGen3.CurrentImage = nil
 DarkyUIGen3._Window = nil
 DarkyUIGen3._KeySystem = nil
@@ -883,13 +947,30 @@ local function VerifyImageLoad(imageLabel, onFailed)
     end)
 end
 
+local RegisterTheme
+
 local function Stroke(parent, color, thickness)
-    return New("UIStroke", {
+    local initialColor = color or COLORS.Border
+    local baseThickness = tonumber(thickness) or 1
+    local stroke = New("UIStroke", {
         Parent = parent,
-        Color = color or COLORS.Border,
-        Thickness = thickness or 1,
+        Color = initialColor,
+        Thickness = baseThickness * (GEN3_BORDER_SCALE or 2),
         ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
     })
+    stroke:SetAttribute("DarkyBaseThickness", baseThickness)
+
+    local isThemeBorder = color == nil or color == COLORS.Border
+    if isThemeBorder and RegisterTheme then
+        RegisterTheme(function(_, colors)
+            if stroke and stroke.Parent then
+                stroke.Color = colors.Border or colors.Accent:Lerp(COLORS.Background, 0.45)
+                stroke.Thickness = baseThickness * (GEN3_BORDER_SCALE or 2)
+            end
+        end)
+    end
+
+    return stroke
 end
 
 local function Padding(parent, left, right, top, bottom)
@@ -942,6 +1023,16 @@ local function AddCorner(parent, radius)
     return New("UICorner", {
         Parent = parent,
         CornerRadius = UDim.new(0, cornerRadius),
+    })
+end
+
+local function AddCornerFixed(parent, radius)
+    if not parent then return nil end
+    local old = parent:FindFirstChildOfClass("UICorner")
+    if old then old:Destroy() end
+    return New("UICorner", {
+        Parent = parent,
+        CornerRadius = UDim.new(0, math.max(0, tonumber(radius) or 10)),
     })
 end
 
@@ -1148,10 +1239,17 @@ local function CurrentTheme()
     local base = THEMES[DarkyUIGen3.CurrentTheme] or THEMES.BlueSky
 
     if DarkyUIGen3._AccentOverride then
+        local accent = DarkyUIGen3._AccentOverride
+        local accent2 = DarkyUIGen3._AccentOverride2 or accent
+        local accent3 = DarkyUIGen3._AccentOverride3 or accent2 or accent
         return {
-            Accent = DarkyUIGen3._AccentOverride,
-            Accent2 = DarkyUIGen3._AccentOverride2 or DarkyUIGen3._AccentOverride,
-            Accent3 = DarkyUIGen3._AccentOverride3 or DarkyUIGen3._AccentOverride2 or DarkyUIGen3._AccentOverride,
+            Accent = accent,
+            Accent2 = accent2,
+            Accent3 = accent3,
+            Border = accent:Lerp(COLORS.Black, 0.62),
+            Border2 = accent:Lerp(COLORS.Black, 0.32),
+            Glow = accent,
+            Shine = COLORS.White,
         }
     end
 
@@ -1208,6 +1306,12 @@ local function ResolveStyleColor(value, fallback)
         Black = Color3.fromRGB(5, 5, 7),
         Gray = THEMES.Grey.Accent,
         Grey = THEMES.Grey.Accent,
+        Dark = THEMES.Dark.Accent,
+        Darker = THEMES.Darker.Accent,
+        SuperDarker = THEMES.SuperDarker.Accent,
+        Gold = THEMES.Gold.Accent,
+        Cyan = THEMES.Cyan.Accent,
+        Rose = THEMES.Rose.Accent,
     }
 
     local lower = value:lower()
@@ -1242,7 +1346,7 @@ local function ResolveStyleColor(value, fallback)
     return fallback
 end
 
-local function RegisterTheme(callback)
+RegisterTheme = function(callback)
     table.insert(
         DarkyUIGen3._ThemeObjects,
         callback
@@ -1381,6 +1485,25 @@ local function AddSectionAccent(parent)
     })
 end
 
+function DarkyUIGen3:SetBorderScale(value)
+    local scale = math.clamp(tonumber(value) or 2, 1, 4)
+    GEN3_BORDER_SCALE = scale
+
+    local window = DarkyUIGen3._Window
+    if window and window.Gui then
+        for _, object in ipairs(window.Gui:GetDescendants()) do
+            if object:IsA("UIStroke") then
+                local base = object:GetAttribute("DarkyBaseThickness")
+                if typeof(base) == "number" then
+                    object.Thickness = base * scale
+                end
+            end
+        end
+    end
+
+    return scale
+end
+
 function DarkyUIGen3:SetTheme(name)
     if type(name) ~= "string" then
         return false
@@ -1435,6 +1558,9 @@ function DarkyUIGen3:SetTheme(name)
 end
 
 DarkyUIGen3.Theme = DarkyUIGen3.SetTheme
+function DarkyUIGen3:GetVersion()
+    return GEN3_VERSION
+end
 DarkyUIGen3._ApplyAccentOverride = ApplyAccentOverride
 -- NOTIFICATIONS
 function DarkyUIGen3:Notify(config)
@@ -2750,6 +2876,9 @@ function DarkyUIGen3:CreateWindow(config)
         and DarkyUIGen3._KeySystem
         or nil
 
+    Window.BorderScale = math.clamp(tonumber(config.BorderScale) or 2, 1, 4)
+    GEN3_BORDER_SCALE = Window.BorderScale
+
     if config.Border ~= nil then
         Window.Border = config.Border == true
     elseif existingKeySystem then
@@ -2838,13 +2967,28 @@ function DarkyUIGen3:CreateWindow(config)
         end
     end
 
-    AddCorner(floating, 11)
+    AddCornerFixed(floating, 11)
 
     Stroke(
         floating,
         COLORS.Border,
         1
     )
+
+    local floatingShine = New("Frame", {
+        Parent = floating,
+        Position = UDim2.fromOffset(8, 2),
+        Size = UDim2.new(1, -16, 0, 1),
+        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+        BackgroundTransparency = 0.45,
+        BorderSizePixel = 0,
+        ZIndex = 502,
+    })
+    RegisterTheme(function(_, colors)
+        if floatingShine and floatingShine.Parent then
+            floatingShine.BackgroundColor3 = colors.Shine or COLORS.White
+        end
+    end)
 
     local floatingIcon = IconOrBadge(
         floating,
@@ -2873,6 +3017,12 @@ function DarkyUIGen3:CreateWindow(config)
     )
 
     Window.Main = main
+
+    function Window:SetBorderScale(value)
+        local applied = DarkyUIGen3:SetBorderScale(value)
+        self.BorderScale = applied
+        return applied
+    end
 
     local uiScale = New("UIScale", {
         Parent = main,
@@ -2941,18 +3091,30 @@ function DarkyUIGen3:CreateWindow(config)
     local topBarBase = topBarColors.Accent:Lerp(COLORS.Background, 0.18)
     top.BackgroundColor3 = topBarBase
 
-    New("UIGradient", {
+    local topGradient = New("UIGradient", {
         Parent = top,
         Rotation = 0,
         Color = ColorSequence.new({
-            ColorSequenceKeypoint.new(0, topBarColors.Accent2),
+            ColorSequenceKeypoint.new(0, topBarColors.Shine:Lerp(topBarColors.Accent2, 0.82)),
+            ColorSequenceKeypoint.new(0.12, topBarColors.Accent2),
             ColorSequenceKeypoint.new(0.45, topBarBase),
             ColorSequenceKeypoint.new(1, topBarColors.Accent:Lerp(COLORS.Black, 0.08)),
         }),
         Transparency = NumberSequence.new({
             NumberSequenceKeypoint.new(0, 0.02),
+            NumberSequenceKeypoint.new(0.08, 0.06),
             NumberSequenceKeypoint.new(1, 0.12),
         }),
+    })
+
+    local topShine = New("Frame", {
+        Parent = top,
+        Position = UDim2.fromOffset(10, 2),
+        Size = UDim2.new(1, -20, 0, 1),
+        BackgroundColor3 = topBarColors.Shine,
+        BackgroundTransparency = 0.42,
+        BorderSizePixel = 0,
+        ZIndex = 25,
     })
 
     New(
@@ -2968,19 +3130,39 @@ function DarkyUIGen3:CreateWindow(config)
         }
     )
 
-    Stroke(
+    local topStroke = Stroke(
         top,
-        topBarColors.Accent2,
+        topBarColors.Border2 or topBarColors.Accent2,
         1
     )
 
     RegisterTheme(function(_, colors)
         if mainStroke and mainStroke.Parent then
-            mainStroke.Color = Window.Border and colors.Accent or COLORS.Border
+            mainStroke.Color = Window.Border and colors.Accent or colors.Border
             mainStroke.Transparency = Window.Border and 0 or 1
+            mainStroke.Thickness = 1 * (Window.BorderScale or 2)
         end
         if mainAura and mainAura.Root and mainAura.Root.Parent then
             mainAura:SetColor(colors.Accent)
+        end
+    end)
+
+    RegisterTheme(function()
+        local activeTop = THEMES[Window.TopBarTheme] or THEMES.BlueSky
+        local activeBase = activeTop.Accent:Lerp(COLORS.Background, 0.18)
+        if topGradient and topGradient.Parent then
+            topGradient.Color = ColorSequence.new({
+                ColorSequenceKeypoint.new(0, activeTop.Shine:Lerp(activeTop.Accent2, 0.82)),
+                ColorSequenceKeypoint.new(0.12, activeTop.Accent2),
+                ColorSequenceKeypoint.new(0.45, activeBase),
+                ColorSequenceKeypoint.new(1, activeTop.Accent:Lerp(COLORS.Black, 0.08)),
+            })
+        end
+        if top and top.Parent then
+            top.BackgroundColor3 = activeBase
+        end
+        if topShine and topShine.Parent then
+            topShine.BackgroundColor3 = activeTop.Shine
         end
     end)
     -- DRAG MAIN WINDOW
@@ -3686,6 +3868,12 @@ function DarkyUIGen3:CreateWindow(config)
         1
     )
 
+    RegisterTheme(function(_, colors)
+        if tabs and tabs.Parent then
+            tabs.ScrollBarImageColor3 = colors.Border or COLORS.Border
+        end
+    end)
+
     Padding(
         tabs,
         6,
@@ -3720,13 +3908,28 @@ function DarkyUIGen3:CreateWindow(config)
             }
         )
 
-        AddCorner(profile, 10)
+        AddCornerFixed(profile, 10)
 
         Stroke(
             profile,
             COLORS.Border,
             1
         )
+
+        local profileShine = New("Frame", {
+            Parent = profile,
+            Position = UDim2.fromOffset(7, 2),
+            Size = UDim2.new(1, -14, 0, 1),
+            BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+            BackgroundTransparency = 0.55,
+            BorderSizePixel = 0,
+            ZIndex = 15,
+        })
+        RegisterTheme(function(_, colors)
+            if profileShine and profileShine.Parent then
+                profileShine.BackgroundColor3 = colors.Shine or COLORS.White
+            end
+        end)
 
         if Window.UserConfig.Profile then
             local avatar = New(
@@ -8861,6 +9064,7 @@ end
 --     Size = UDim2.fromOffset(560,360),
 --     Folder = "MySuperHub",
 --     UIShape = "Square", -- "Square" or "Corner"; "Sqaure" also accepted
+--     BorderScale = 2,
 --     UIscale = "0.7",
 --     TopBar = "BlueSky", -- changes the window top bar only
 --     TextScale = "1.0",
