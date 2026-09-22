@@ -21,7 +21,7 @@ local Config = {
     MainGuiName     = "anything",
 
     HubName         = "Darky Hub",
-    HubDescription  = "Paste your key to continue"
+    HubDescription  = "Get key and paste"
 }
 
 local Players = game:GetService("Players")
@@ -34,41 +34,61 @@ local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
 local fSetClipboard = setclipboard or toclipboard or function() end
-
-local function getHwid()
-    if gethwid then
-        local ok, result = pcall(gethwid)
-        if ok and result then
-            return tostring(result)
-        end
-    end
-
-    local ok, result = pcall(function()
-        return game:GetService("RbxAnalyticsService"):GetClientId()
-    end)
-
-    if ok and result then
-        return tostring(result)
-    end
-
-    return "unknown"
+local fGetHwid = gethwid or function()
+    return game:GetService("RbxAnalyticsService"):GetClientId()
 end
 
-local function jsonEncode(data)
-    local ok, result = pcall(function()
-        return HttpService:JSONEncode(data)
-    end)
+local lEncode, lDecode, lDigest = a3, aw, Z
 
-    if ok then
-        return result
+local useNonce = true
+
+local cachedLink = ""
+local cachedTime = 0
+
+local HOSTS = {
+    "https://api.platoboost.com",
+    "https://api.platoboost.net"
+}
+
+local host = HOSTS[1]
+
+local function safeRequest(options)
+    local req =
+        request
+        or http_request
+        or syn_request
+        or (http and http.request)
+
+    if not req then
+        return nil, "HTTP requests are not supported"
     end
 
-    return nil
+    local ok, response = pcall(function()
+        return req(options)
+    end)
+
+    if not ok then
+        return nil, "Connection Error: " .. tostring(response)
+    end
+
+    if type(response) ~= "table" then
+        return nil, "Invalid HTTP response"
+    end
+
+    return response
 end
 
-local function jsonDecode(data)
+local function decodeResponse(response)
+    if not response then
+        return nil
+    end
+
+    if not response.Body then
+        return nil
+    end
+
     local ok, result = pcall(function()
-        return HttpService:JSONDecode(data)
+        return lDecode(response.Body)
     end)
 
     if ok and type(result) == "table" then
@@ -78,68 +98,8 @@ local function jsonDecode(data)
     return nil
 end
 
-local function getRequest()
-    if request then
-        return request
-    end
-
-    if http_request then
-        return http_request
-    end
-
-    if syn and syn.request then
-        return syn.request
-    end
-
-    if http and http.request then
-        return http.request
-    end
-
-    return nil
-end
-
-local function safeRequest(options)
-    local req = getRequest()
-
-    if not req then
-        return nil, "HTTP requests are not supported by this executor."
-    end
-
-    local ok, response = pcall(function()
-        return req(options)
-    end)
-
-    if not ok then
-        return nil, "Request failed: " .. tostring(response)
-    end
-
-    if type(response) ~= "table" then
-        return nil, "Invalid HTTP response."
-    end
-
-    local status = tonumber(
-        response.StatusCode
-        or response.Status
-        or response.status_code
-        or 0
-    )
-
-    local body = response.Body
-        or response.body
-        or ""
-
-    return {
-        StatusCode = status,
-        Body = tostring(body)
-    }
-end
-
-local function responseMessage(response)
-    if not response then
-        return nil
-    end
-
-    local decoded = jsonDecode(response.Body)
+local function getResponseMessage(response)
+    local decoded = decodeResponse(response)
 
     if not decoded then
         return nil
@@ -166,215 +126,112 @@ local function responseMessage(response)
     return nil
 end
 
-local HOSTS = {
-    "https://api.platoboost.com",
-    "https://api.platoboost.net"
-}
-
-local host = nil
-
-local function connectivityCheck(base)
-    local response, err = safeRequest({
+local function checkConnectivity(base)
+    local response = safeRequest({
         Url = base .. "/public/connectivity",
         Method = "GET",
         Headers = {
-            ["Accept"] = "application/json",
-            ["User-Agent"] = "DarkyHub/1.0"
+            ["Content-Type"] = "application/json"
         }
     })
 
     if not response then
-        return false, err
+        return false
     end
 
-    if response.StatusCode == 429 then
-        return false, "Rate limited by " .. base
+    local status = tonumber(response.StatusCode or 0)
+
+    if status == 200 or status == 429 then
+        return true
     end
 
-    if response.StatusCode ~= 200 then
-        return false, "Connectivity HTTP " .. tostring(response.StatusCode)
-    end
-
-    local decoded = jsonDecode(response.Body)
-
-    if not decoded then
-        return false, "Connectivity returned invalid JSON."
-    end
-
-    if decoded.success == false then
-        return false, tostring(decoded.message or "Connectivity check failed.")
-    end
-
-    return true
+    return false
 end
 
-local function ensureHost()
-    if host then
-        local ok = connectivityCheck(host)
-        if ok then
-            return true
-        end
+local function checkConnectivityAll()
+    if checkConnectivity(host) then
+        return true
     end
 
     for _, base in ipairs(HOSTS) do
-        local ok = connectivityCheck(base)
-
-        if ok then
+        if base ~= host and checkConnectivity(base) then
             host = base
             return true
         end
     end
 
-    host = nil
     return false
 end
 
-local function requestJson(method, path, body)
-    local attempted = {}
-
-    if host then
-        table.insert(attempted, host)
-    end
-
-    for _, base in ipairs(HOSTS) do
-        if base ~= host then
-            table.insert(attempted, base)
-        end
-    end
-
-    local lastError = "No connection."
-
-    for _, base in ipairs(attempted) do
-        local encodedBody
-
-        if body ~= nil then
-            encodedBody = jsonEncode(body)
-
-            if not encodedBody then
-                return nil, "Failed to encode request."
-            end
-        end
-
-        local response, err = safeRequest({
-            Url = base .. path,
-            Method = method,
-            Body = encodedBody,
-            Headers = {
-                ["Content-Type"] = "application/json",
-                ["Accept"] = "application/json",
-                ["User-Agent"] = "DarkyHub/1.0"
-            }
-        })
-
-        if response then
-            if response.StatusCode == 200 then
-                host = base
-                return response
-            end
-
-            if response.StatusCode == 400
-                or response.StatusCode == 401
-                or response.StatusCode == 403 then
-                host = base
-                return response
-            end
-
-            if response.StatusCode == 404 then
-                lastError = "HTTP 404 from " .. base
-            elseif response.StatusCode == 429 then
-                lastError = "HTTP 429 - Too many requests."
-            elseif response.StatusCode >= 500 then
-                lastError = "PlatoBoost server HTTP " .. tostring(response.StatusCode)
-            else
-                lastError = "HTTP " .. tostring(response.StatusCode)
-            end
-        else
-            lastError = tostring(err or "Request failed.")
-        end
-    end
-
-    return nil, lastError
-end
-
 local function generateNonce()
-    if HttpService.GenerateGUID then
-        local ok, guid = pcall(function()
-            return HttpService:GenerateGUID(false)
-        end)
+    local result = ""
 
-        if ok and guid then
-            return guid:gsub("-", ""):sub(1, 32)
-        end
+    for _ = 1, 16 do
+        result = result .. string.char(
+            math.floor(math.random() * 26) + 97
+        )
     end
 
-    local chars = "abcdefghijklmnopqrstuvwxyz0123456789"
-    local result = {}
-
-    math.randomseed(
-        os.time()
-        + math.floor(os.clock() * 1000000)
-    )
-
-    for i = 1, 32 do
-        local index = math.random(1, #chars)
-        result[i] = chars:sub(index, index)
-    end
-
-    return table.concat(result)
+    return result
 end
-
-local useNonce = true
-
-local cachedLink = nil
-local cachedTime = 0
 
 local function cacheLink()
-    if cachedLink and os.time() - cachedTime < 300 then
+    if cachedTime + 600 > os.time()
+        and cachedLink ~= "" then
+
         return true, cachedLink
     end
 
-    if not ensureHost() then
-        return false, "PlatoBoost is unreachable."
+    if not checkConnectivityAll() then
+        return false, "Delta/Network Error! Use VPN or change Executor."
     end
 
-    local response, err = requestJson(
-        "POST",
-        "/public/start",
-        {
+    local hwid = tostring(fGetHwid())
+
+    local response, err = safeRequest({
+        Url = host .. "/public/start",
+        Method = "POST",
+        Body = lEncode({
             service = Config.ServiceId,
-            identifier = lDigest(getHwid())
+            identifier = lDigest(hwid)
+        }),
+        Headers = {
+            ["Content-Type"] = "application/json"
         }
-    )
+    })
 
     if not response then
-        return false, tostring(err)
+        return false, err or "Connection Error"
     end
 
-    if response.StatusCode == 429 then
-        return false, "Too many requests. Wait a few seconds and try again."
+    local status = tonumber(response.StatusCode or 0)
+
+    if status == 429 then
+        return false, "Rate limited. Please try again shortly."
     end
 
-    if response.StatusCode ~= 200 then
-        local msg = responseMessage(response)
+    if status ~= 200 then
+        local msg = getResponseMessage(response)
 
         return false,
-            "PlatoBoost HTTP " ..
-            tostring(response.StatusCode) ..
+            "HTTP " .. tostring(status) ..
             (msg and (" - " .. msg) or "")
     end
 
-    local decoded = jsonDecode(response.Body)
+    local decoded = decodeResponse(response)
 
     if not decoded then
-        return false, "PlatoBoost returned invalid JSON."
+        return false, "Invalid server response."
     end
 
     if not decoded.success then
-        return false, tostring(decoded.message or "Failed to create key link.")
+        return false, tostring(decoded.message or "Unable to create key link.")
     end
 
-    if type(decoded.data) ~= "table" or not decoded.data.url then
-        return false, "PlatoBoost response did not contain a key URL."
+    if type(decoded.data) ~= "table"
+        or not decoded.data.url then
+
+        return false, "Server did not return a key link."
     end
 
     cachedLink = tostring(decoded.data.url)
@@ -384,20 +241,21 @@ local function cacheLink()
 end
 
 local function redeemKey(key)
-    key = tostring(key or ""):gsub("^%s+", ""):gsub("%s+$", "")
+    key = tostring(key or "")
+    key = key:gsub("^%s+", ""):gsub("%s+$", "")
 
     if key == "" then
-        return false, "Enter a key first."
+        return false, "Enter a key."
     end
 
-    if not ensureHost() then
-        return false, "PlatoBoost is unreachable. Check your network."
+    if not checkConnectivityAll() then
+        return false, "PlatoBoost connection failed."
     end
 
     local nonce = generateNonce()
 
     local body = {
-        identifier = lDigest(getHwid()),
+        identifier = lDigest(tostring(fGetHwid())),
         key = key
     }
 
@@ -405,91 +263,88 @@ local function redeemKey(key)
         body.nonce = nonce
     end
 
-    local response, err = requestJson(
-        "POST",
-        "/public/redeem/" .. tostring(Config.ServiceId),
-        body
-    )
+    local response, err = safeRequest({
+        Url = host .. "/public/redeem/" .. tostring(Config.ServiceId),
+        Method = "POST",
+        Body = lEncode(body),
+        Headers = {
+            ["Content-Type"] = "application/json"
+        }
+    })
 
     if not response then
-        return false, tostring(err or "Request failed.")
+        return false, err or "Connection Error"
     end
 
-    local status = response.StatusCode
-    local decoded = jsonDecode(response.Body)
+    local status = tonumber(response.StatusCode or 0)
 
     if status == 429 then
-        return false, "Rate limited. Wait 10-20 seconds and try again."
+        return false, "Too many requests. Try again shortly."
     end
 
     if status == 401 then
-        return false, "PlatoBoost rejected the request (HTTP 401)."
+        return false, "Unauthorized request (HTTP 401)."
     end
 
     if status == 403 then
-        return false, "PlatoBoost rejected the service (HTTP 403)."
+        return false, "Access denied by PlatoBoost (HTTP 403)."
     end
 
     if status == 404 then
         return false,
-            "Service/API endpoint not found (HTTP 404). Check ServiceId " ..
-            tostring(Config.ServiceId) ..
-            " in PlatoBoost."
+            "Service/API not found (HTTP 404). Check ServiceId."
     end
 
     if status >= 500 then
         return false,
             "PlatoBoost server error (HTTP " ..
-            tostring(status) ..
-            "). Try again later."
+            tostring(status) .. ")."
     end
 
     if status ~= 200 then
-        local msg = responseMessage(response)
+        local msg = getResponseMessage(response)
 
         return false,
-            "PlatoBoost HTTP " ..
-            tostring(status) ..
+            "HTTP " .. tostring(status) ..
             (msg and (" - " .. msg) or "")
     end
 
+    local decoded = decodeResponse(response)
+
     if not decoded then
-        return false, "PlatoBoost returned invalid JSON."
+        return false, "Invalid server response."
     end
 
     if not decoded.success then
         return false,
-            tostring(
-                decoded.message
-                or (
-                    type(decoded.data) == "table"
-                    and decoded.data.message
-                )
-                or "Invalid key."
-            )
+            tostring(decoded.message or "Invalid key.")
     end
 
     if type(decoded.data) ~= "table" then
-        return false, "Invalid verification response."
+        return false, "Invalid verification data."
     end
 
     if decoded.data.valid ~= true then
-        return false, tostring(decoded.message or "Invalid or expired key.")
+        return false,
+            tostring(decoded.message or "Invalid or expired key.")
     end
 
     if useNonce then
-        local serverHash = decoded.data.hash
-
-        if not serverHash then
-            return false, "Missing integrity hash from PlatoBoost."
+        if not decoded.data.hash then
+            return false, "Missing integrity hash."
         end
 
         local expectedHash = lDigest(
-            "true-" .. nonce .. "-" .. Config.PlatoSecret
+            "true-" ..
+            nonce ..
+            "-" ..
+            Config.PlatoSecret
         )
 
-        if tostring(serverHash):lower() ~= tostring(expectedHash):lower() then
-            return false, "Integrity check failed. Regenerate PlatoSecret."
+        if tostring(decoded.data.hash):lower()
+            ~= tostring(expectedHash):lower() then
+
+            return false, "Integrity Check Failed"
         end
     end
 
@@ -499,11 +354,14 @@ local function redeemKey(key)
         end)
     end
 
-    return true, "Key verified successfully."
+    return true, "Success"
 end
 
-local function destroyExistingGui(name)
-    for _, parent in ipairs({CoreGui, PlayerGui}) do
+local function destroyGui(name)
+    for _, parent in ipairs({
+        CoreGui,
+        PlayerGui
+    }) do
         local gui = parent:FindFirstChild(name)
 
         if gui then
@@ -514,43 +372,33 @@ local function destroyExistingGui(name)
     end
 end
 
-local function findMainGui()
-    for _, parent in ipairs({CoreGui, PlayerGui}) do
-        if parent:FindFirstChild(Config.MainGuiName) then
-            return true
-        end
-    end
-
-    return false
-end
-
 local function StartMainScript()
-    destroyExistingGui(Config.OldGuiName)
+    destroyGui(Config.OldGuiName)
 
     _G[Config.Secret] = true
 
-    local ok, err = pcall(function()
+    local ok, result = pcall(function()
         local source = game:HttpGet(Config.MainScriptURL)
 
         if not source or source == "" then
-            error("Main script returned empty content.")
+            error("Main script returned empty source")
         end
 
         local loader = loadstring(source)
 
         if not loader then
-            error("Main script could not be compiled.")
+            error("Failed to compile main script")
         end
 
         loader()
     end)
 
     if not ok then
-        warn("[DarkyHub] Main script failed: " .. tostring(err))
+        warn("[Darky Hub] Main Script Error: " .. tostring(result))
     end
 end
 
-local function create(className, parent, properties)
+local function Create(className, parent, properties)
     local object = Instance.new(className)
     object.Parent = parent
 
@@ -563,39 +411,45 @@ local function create(className, parent, properties)
     return object
 end
 
-local function round(object, radius)
-    create("UICorner", object, {
-        CornerRadius = UDim.new(0, radius)
-    })
+local function Corner(object, radius)
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, radius or 12)
+    corner.Parent = object
+
+    return corner
 end
 
-local function stroke(object, color, thickness, transparency)
-    return create("UIStroke", object, {
-        Color = color,
-        Thickness = thickness or 1,
-        Transparency = transparency or 0
-    })
+local function Stroke(object, color, thickness, transparency)
+    local uiStroke = Instance.new("UIStroke")
+    uiStroke.Color = color
+    uiStroke.Thickness = thickness or 1
+    uiStroke.Transparency = transparency or 0
+    uiStroke.Parent = object
+
+    return uiStroke
 end
 
-local function tween(object, time, properties)
+local function Tween(object, duration, properties)
     local ok, result = pcall(function()
-        return TweenService:Create(
+        local t = TweenService:Create(
             object,
             TweenInfo.new(
-                time,
+                duration,
                 Enum.EasingStyle.Quint,
                 Enum.EasingDirection.Out
             ),
             properties
         )
+
+        t:Play()
+
+        return t
     end)
 
-    if ok and result then
-        result:Play()
-    end
+    return ok and result
 end
 
-local function makeDraggable(handle, target)
+local function MakeDraggable(handle, target)
     local dragging = false
     local dragInput
     local dragStart
@@ -639,56 +493,29 @@ local function makeDraggable(handle, target)
     end)
 end
 
-local function addHover(button, normalColor, hoverColor)
-    button.MouseEnter:Connect(function()
-        tween(button, 0.16, {
-            BackgroundColor3 = hoverColor
-        })
-    end)
-
-    button.MouseLeave:Connect(function()
-        tween(button, 0.16, {
-            BackgroundColor3 = normalColor
-        })
-    end)
-end
-
 local function CreateGUI()
-    destroyExistingGui("DarkyHub_KeySystem")
+    destroyGui("DarkyHub_KeySystem")
 
-    local targetParent = CoreGui
-
-    local screenGui = create("ScreenGui", targetParent, {
+    local ScreenGui = Create("ScreenGui", CoreGui, {
         Name = "DarkyHub_KeySystem",
         ResetOnSpawn = false,
         IgnoreGuiInset = true,
-        ZIndexBehavior = Enum.ZIndexBehavior.Global,
-        DisplayOrder = 999999
+        DisplayOrder = 999999,
+        ZIndexBehavior = Enum.ZIndexBehavior.Global
     })
 
-    local glow = create("Frame", screenGui, {
+    local Glow = Create("Frame", ScreenGui, {
         Size = UDim2.fromOffset(470, 380),
         Position = UDim2.new(0.5, -235, 0.5, -190),
-        BackgroundColor3 = Color3.fromRGB(80, 170, 255),
+        BackgroundColor3 = Color3.fromRGB(70, 150, 255),
         BackgroundTransparency = 0.94,
         BorderSizePixel = 0,
         ZIndex = 0
     })
 
-    round(glow, 28)
+    Corner(Glow, 30)
 
-    local softGlow = create("Frame", screenGui, {
-        Size = UDim2.fromOffset(450, 360),
-        Position = UDim2.new(0.5, -225, 0.5, -180),
-        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-        BackgroundTransparency = 0.97,
-        BorderSizePixel = 0,
-        ZIndex = 0
-    })
-
-    round(softGlow, 26)
-
-    local main = create("Frame", screenGui, {
+    local MainFrame = Create("Frame", ScreenGui, {
         Size = UDim2.fromOffset(440, 350),
         Position = UDim2.new(0.5, -220, 0.5, -175),
         BackgroundColor3 = Color3.fromRGB(14, 17, 23),
@@ -698,23 +525,24 @@ local function CreateGUI()
         ZIndex = 2
     })
 
-    round(main, 20)
+    Corner(MainFrame, 20)
 
-    local mainStroke = stroke(
-        main,
+    local MainStroke = Stroke(
+        MainFrame,
         Color3.fromRGB(255, 255, 255),
         1,
         0.78
     )
 
-    local header = create("Frame", main, {
+    local Header = Create("Frame", MainFrame, {
         Size = UDim2.new(1, 0, 0, 82),
         BackgroundTransparency = 1,
-        BorderSizePixel = 0,
         ZIndex = 3
     })
 
-    local iconBox = create("Frame", header, {
+    MakeDraggable(Header, MainFrame)
+
+    local IconBox = Create("Frame", Header, {
         Size = UDim2.fromOffset(46, 46),
         Position = UDim2.fromOffset(20, 18),
         BackgroundColor3 = Color3.fromRGB(27, 34, 45),
@@ -722,10 +550,16 @@ local function CreateGUI()
         ZIndex = 4
     })
 
-    round(iconBox, 14)
-    stroke(iconBox, Color3.fromRGB(255, 255, 255), 1, 0.84)
+    Corner(IconBox, 14)
 
-    create("TextLabel", iconBox, {
+    Stroke(
+        IconBox,
+        Color3.fromRGB(255, 255, 255),
+        1,
+        0.84
+    )
+
+    Create("TextLabel", IconBox, {
         Size = UDim2.fromScale(1, 1),
         BackgroundTransparency = 1,
         Text = "D",
@@ -735,9 +569,9 @@ local function CreateGUI()
         ZIndex = 5
     })
 
-    create("TextLabel", header, {
+    Create("TextLabel", Header, {
         Size = UDim2.new(1, -150, 0, 30),
-        Position = UDim2.fromOffset(78, 16),
+        Position = UDim2.fromOffset(78, 14),
         BackgroundTransparency = 1,
         Text = Config.HubName,
         TextColor3 = Color3.fromRGB(245, 248, 255),
@@ -747,8 +581,8 @@ local function CreateGUI()
         ZIndex = 4
     })
 
-    create("TextLabel", header, {
-        Size = UDim2.new(1, -150, 0, 24),
+    Create("TextLabel", Header, {
+        Size = UDim2.new(1, -150, 0, 22),
         Position = UDim2.fromOffset(79, 44),
         BackgroundTransparency = 1,
         Text = Config.HubDescription,
@@ -759,42 +593,26 @@ local function CreateGUI()
         ZIndex = 4
     })
 
-    local close = create("TextButton", header, {
+    local CloseBtn = Create("TextButton", Header, {
         Size = UDim2.fromOffset(36, 36),
         Position = UDim2.new(1, -52, 0, 22),
         BackgroundColor3 = Color3.fromRGB(28, 32, 40),
+        BackgroundTransparency = 0,
         Text = "X",
-        TextColor3 = Color3.fromRGB(190, 198, 210),
+        TextColor3 = Color3.fromRGB(200, 205, 214),
         Font = Enum.Font.GothamBold,
         TextSize = 13,
         AutoButtonColor = false,
-        ZIndex = 6
+        ZIndex = 7
     })
 
-    round(close, 12)
-    stroke(close, Color3.fromRGB(255, 255, 255), 1, 0.86)
+    Corner(CloseBtn, 12)
 
-    close.MouseEnter:Connect(function()
-        tween(close, 0.15, {
-            BackgroundColor3 = Color3.fromRGB(100, 35, 45),
-            TextColor3 = Color3.fromRGB(255, 110, 120)
-        })
+    CloseBtn.MouseButton1Click:Connect(function()
+        ScreenGui:Destroy()
     end)
 
-    close.MouseLeave:Connect(function()
-        tween(close, 0.15, {
-            BackgroundColor3 = Color3.fromRGB(28, 32, 40),
-            TextColor3 = Color3.fromRGB(190, 198, 210)
-        })
-    end)
-
-    close.MouseButton1Click:Connect(function()
-        screenGui:Destroy()
-    end)
-
-    makeDraggable(header, main)
-
-    local accent = create("Frame", main, {
+    local Accent = Create("Frame", MainFrame, {
         Size = UDim2.new(1, -40, 0, 2),
         Position = UDim2.fromOffset(20, 80),
         BackgroundColor3 = Color3.fromRGB(80, 170, 255),
@@ -802,219 +620,231 @@ local function CreateGUI()
         ZIndex = 4
     })
 
-    local accentGradient = create("UIGradient", accent, {
+    local AccentGradient = Create("UIGradient", Accent, {
         Color = ColorSequence.new({
-            ColorSequenceKeypoint.new(0, Color3.fromRGB(80, 170, 255)),
-            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 255)),
-            ColorSequenceKeypoint.new(1, Color3.fromRGB(130, 90, 255))
+            ColorSequenceKeypoint.new(
+                0,
+                Color3.fromRGB(80, 170, 255)
+            ),
+            ColorSequenceKeypoint.new(
+                0.5,
+                Color3.fromRGB(255, 255, 255)
+            ),
+            ColorSequenceKeypoint.new(
+                1,
+                Color3.fromRGB(135, 90, 255)
+            )
         })
     })
 
     task.spawn(function()
-        while screenGui.Parent do
-            accentGradient.Offset = Vector2.new(-1, 0)
-            tween(accentGradient, 1.4, {
-                Offset = Vector2.new(1, 0)
-            })
-            task.wait(1.5)
+        while ScreenGui.Parent do
+            AccentGradient.Offset = Vector2.new(-1, 0)
+
+            Tween(
+                AccentGradient,
+                1.2,
+                {
+                    Offset = Vector2.new(1, 0)
+                }
+            )
+
+            task.wait(1.3)
         end
     end)
 
-    local body = create("Frame", main, {
-        Size = UDim2.new(1, -40, 1, -110),
-        Position = UDim2.fromOffset(20, 98),
+    local Body = Create("Frame", MainFrame, {
+        Size = UDim2.new(1, -40, 1, -105),
+        Position = UDim2.fromOffset(20, 94),
         BackgroundTransparency = 1,
-        BorderSizePixel = 0,
         ZIndex = 3
     })
 
-    local socials = create("Frame", body, {
-        Size = UDim2.new(1, 0, 0, 42),
+    local CurrentY = 0
+
+    local SocialFrame = Create("Frame", Body, {
+        Size = UDim2.new(1, 0, 0, 40),
         BackgroundTransparency = 1,
-        BorderSizePixel = 0,
         ZIndex = 3
     })
 
-    local socialLayout = create("UIListLayout", socials, {
+    local SocialLayout = Create("UIListLayout", SocialFrame, {
         FillDirection = Enum.FillDirection.Horizontal,
-        HorizontalAlignment = Enum.HorizontalAlignment.Left,
-        VerticalAlignment = Enum.VerticalAlignment.Center,
-        Padding = UDim.new(0, 8)
+        Padding = UDim.new(0, 8),
+        VerticalAlignment = Enum.VerticalAlignment.Center
     })
 
-    socialLayout.SortOrder = Enum.SortOrder.LayoutOrder
-
-    local socialCount = 0
-
-    local function addSocial(text, url, color)
-        socialCount += 1
-
-        local button = create("TextButton", socials, {
-            Size = UDim2.fromOffset(118, 36),
-            BackgroundColor3 = Color3.fromRGB(28, 33, 42),
+    local function AddSocial(
+        text,
+        url,
+        color
+    )
+        local button = Create("TextButton", SocialFrame, {
+            Size = UDim2.fromOffset(120, 34),
+            BackgroundColor3 = Color3.fromRGB(29, 35, 44),
             Text = text,
             TextColor3 = Color3.fromRGB(235, 239, 247),
-            Font = Enum.Font.GothamSemibold,
-            TextSize = 11,
+            Font = Enum.Font.GothamBold,
+            TextSize = 10,
             AutoButtonColor = false,
-            LayoutOrder = socialCount,
             ZIndex = 4
         })
 
-        round(button, 11)
-        stroke(
+        Corner(button, 11)
+
+        Stroke(
             button,
             Color3.fromRGB(255, 255, 255),
             1,
-            0.88
+            0.87
         )
 
         button.MouseButton1Click:Connect(function()
             fSetClipboard(url)
 
-            statusText.Text = text .. " link copied"
-            statusText.TextColor3 = color
-            statusDot.BackgroundColor3 = color
-        end)
+            Status.Text = text .. " link copied!"
+            Status.TextColor3 = color
+            StatusDot.BackgroundColor3 = color
 
-        addHover(
-            button,
-            Color3.fromRGB(28, 33, 42),
-            Color3.fromRGB(37, 45, 58)
-        )
+            if text == "DISCORD"
+                and syn
+                and syn.request then
+
+                local inviteCode = string.match(
+                    url,
+                    "discord%.gg/([%w-]+)"
+                )
+
+                if inviteCode then
+                    pcall(function()
+                        syn.request({
+                            Url =
+                                "http://localhost:1111/discord?invite="
+                                .. inviteCode,
+                            Method = "GET"
+                        })
+                    end)
+                end
+            end
+        end)
     end
 
     if Config.ShowDiscord then
-        addSocial(
+        AddSocial(
             "DISCORD",
             Config.DiscordURL,
-            Color3.fromRGB(110, 125, 255)
+            Color3.fromRGB(88, 101, 242)
         )
     end
 
     if Config.ShowInstagram then
-        addSocial(
+        AddSocial(
             "INSTAGRAM",
             Config.InstagramURL,
-            Color3.fromRGB(235, 75, 135)
+            Color3.fromRGB(225, 48, 108)
         )
     end
 
     if Config.ShowYoutube then
-        addSocial(
+        AddSocial(
             "YOUTUBE",
             Config.YoutubeURL,
-            Color3.fromRGB(255, 80, 80)
+            Color3.fromRGB(255, 60, 60)
         )
     end
 
-    if socialCount == 0 then
-        socials.Size = UDim2.new(1, 0, 0, 10)
+    local hasSocial =
+        Config.ShowDiscord
+        or Config.ShowInstagram
+        or Config.ShowYoutube
+
+    if hasSocial then
+        CurrentY = 48
+    else
+        SocialFrame.Visible = false
     end
 
-    local keyCard = create("Frame", body, {
-        Size = UDim2.new(1, 0, 0, 72),
-        Position = UDim2.fromOffset(0, socialCount > 0 and 52 or 12),
+    local KeyCard = Create("Frame", Body, {
+        Size = UDim2.new(1, 0, 0, 68),
+        Position = UDim2.fromOffset(0, CurrentY),
         BackgroundColor3 = Color3.fromRGB(21, 26, 34),
         BorderSizePixel = 0,
         ZIndex = 4
     })
 
-    round(keyCard, 14)
-    stroke(
-        keyCard,
+    Corner(KeyCard, 14)
+
+    Stroke(
+        KeyCard,
         Color3.fromRGB(255, 255, 255),
         1,
         0.9
     )
 
-    local keyBadge = create("Frame", keyCard, {
-        Size = UDim2.fromOffset(38, 38),
-        Position = UDim2.fromOffset(12, 17),
-        BackgroundColor3 = Color3.fromRGB(35, 43, 55),
-        BorderSizePixel = 0,
-        ZIndex = 5
-    })
-
-    round(keyBadge, 11)
-
-    create("TextLabel", keyBadge, {
-        Size = UDim2.fromScale(1, 1),
-        BackgroundTransparency = 1,
-        Text = ">",
-        TextColor3 = Color3.fromRGB(255, 255, 255),
-        Font = Enum.Font.GothamBold,
-        TextSize = 18,
-        ZIndex = 6
-    })
-
-    local keyInput = create("TextBox", keyCard, {
-        Size = UDim2.new(1, -136, 0, 44),
-        Position = UDim2.fromOffset(60, 14),
+    local KeyInput = Create("TextBox", KeyCard, {
+        Size = UDim2.new(1, -100, 1, 0),
+        Position = UDim2.fromOffset(15, 0),
         BackgroundTransparency = 1,
         ClearTextOnFocus = false,
-        PlaceholderText = "Enter your key...",
-        PlaceholderColor3 = Color3.fromRGB(112, 120, 134),
+        PlaceholderText = "Enter Key...",
+        PlaceholderColor3 = Color3.fromRGB(110, 118, 132),
         Text = "",
-        TextColor3 = Color3.fromRGB(242, 245, 250),
+        TextColor3 = Color3.fromRGB(245, 247, 251),
         Font = Enum.Font.GothamMedium,
         TextSize = 13,
         TextXAlignment = Enum.TextXAlignment.Left,
-        ZIndex = 6
+        ZIndex = 5
     })
 
-    local paste = create("TextButton", keyCard, {
-        Size = UDim2.fromOffset(54, 36),
-        Position = UDim2.new(1, -66, 0.5, -18),
-        BackgroundColor3 = Color3.fromRGB(34, 41, 52),
+    local PasteBtn = Create("TextButton", KeyCard, {
+        Size = UDim2.fromOffset(65, 34),
+        Position = UDim2.new(1, -75, 0.5, -17),
+        BackgroundColor3 = Color3.fromRGB(35, 42, 53),
         Text = "PASTE",
-        TextColor3 = Color3.fromRGB(200, 208, 220),
+        TextColor3 = Color3.fromRGB(205, 211, 221),
         Font = Enum.Font.GothamBold,
         TextSize = 9,
         AutoButtonColor = false,
-        ZIndex = 7
+        ZIndex = 6
     })
 
-    round(paste, 10)
+    Corner(PasteBtn, 10)
 
-    paste.MouseButton1Click:Connect(function()
+    PasteBtn.MouseButton1Click:Connect(function()
         if getclipboard then
-            local ok, clipboard = pcall(getclipboard)
+            local ok, value = pcall(getclipboard)
 
-            if ok and clipboard then
-                keyInput.Text = tostring(clipboard)
+            if ok and value then
+                KeyInput.Text = tostring(value)
             end
         end
     end)
 
-    local statusCard = create("Frame", body, {
-        Size = UDim2.new(1, 0, 0, 42),
-        Position = UDim2.new(
-            0,
-            0,
-            0,
-            (socialCount > 0 and 52 or 12) + 82
-        ),
+    CurrentY = CurrentY + 82
+
+    local StatusCard = Create("Frame", Body, {
+        Size = UDim2.new(1, 0, 0, 30),
+        Position = UDim2.fromOffset(0, CurrentY),
         BackgroundTransparency = 1,
-        BorderSizePixel = 0,
         ZIndex = 4
     })
 
-    local statusDot = create("Frame", statusCard, {
+    StatusDot = Create("Frame", StatusCard, {
         Size = UDim2.fromOffset(8, 8),
-        Position = UDim2.fromOffset(4, 17),
+        Position = UDim2.fromOffset(4, 11),
         BackgroundColor3 = Color3.fromRGB(150, 159, 174),
         BorderSizePixel = 0,
         ZIndex = 5
     })
 
-    round(statusDot, 8)
+    Corner(StatusDot, 8)
 
-    local statusText = create("TextLabel", statusCard, {
+    Status = Create("TextLabel", StatusCard, {
+        Name = "StatusLabel",
         Size = UDim2.new(1, -22, 1, 0),
-        Position = UDim2.fromOffset(18, 0),
+        Position = UDim2.fromOffset(19, 0),
         BackgroundTransparency = 1,
-        Text = "Waiting for key...",
+        Text = "Waiting for input...",
         TextColor3 = Color3.fromRGB(150, 159, 174),
         Font = Enum.Font.GothamMedium,
         TextSize = 11,
@@ -1022,42 +852,33 @@ local function CreateGUI()
         ZIndex = 5
     })
 
-    local buttonRow = create("Frame", body, {
-        Size = UDim2.new(1, 0, 0, 46),
-        Position = UDim2.new(
-            0,
-            0,
-            0,
-            (socialCount > 0 and 52 or 12) + 132
-        ),
-        BackgroundTransparency = 1,
-        BorderSizePixel = 0,
-        ZIndex = 4
-    })
+    CurrentY = CurrentY + 36
 
-    local verifyButton = create("TextButton", buttonRow, {
-        Size = UDim2.new(0.5, -5, 1, 0),
-        BackgroundColor3 = Color3.fromRGB(56, 132, 255),
+    local VerifyBtn = Create("TextButton", Body, {
+        Size = UDim2.new(0.5, -5, 0, 44),
+        Position = UDim2.fromOffset(0, CurrentY),
+        BackgroundColor3 = Color3.fromRGB(50, 130, 255),
         Text = "VERIFY KEY",
-        TextColor3 = Color3.fromRGB(255, 255, 255),
+        TextColor3 = Color3.new(1, 1, 1),
         Font = Enum.Font.GothamBold,
         TextSize = 12,
         AutoButtonColor = false,
         ZIndex = 5
     })
 
-    round(verifyButton, 13)
-    stroke(
-        verifyButton,
+    Corner(VerifyBtn, 13)
+
+    Stroke(
+        VerifyBtn,
         Color3.fromRGB(255, 255, 255),
         1,
         0.72
     )
 
-    local getKeyButton = create("TextButton", buttonRow, {
-        Size = UDim2.new(0.5, -5, 1, 0),
-        Position = UDim2.new(0.5, 10, 0, 0),
-        BackgroundColor3 = Color3.fromRGB(28, 34, 43),
+    local GetKeyBtn = Create("TextButton", Body, {
+        Size = UDim2.new(0.5, -5, 0, 44),
+        Position = UDim2.new(0.5, 10, 0, CurrentY),
+        BackgroundColor3 = Color3.fromRGB(29, 35, 44),
         Text = "GET KEY",
         TextColor3 = Color3.fromRGB(235, 239, 247),
         Font = Enum.Font.GothamBold,
@@ -1066,56 +887,44 @@ local function CreateGUI()
         ZIndex = 5
     })
 
-    round(getKeyButton, 13)
-    stroke(
-        getKeyButton,
+    Corner(GetKeyBtn, 13)
+
+    Stroke(
+        GetKeyBtn,
         Color3.fromRGB(255, 255, 255),
         1,
-        0.83
+        0.84
     )
 
-    addHover(
-        verifyButton,
-        Color3.fromRGB(56, 132, 255),
-        Color3.fromRGB(75, 150, 255)
-    )
-
-    addHover(
-        getKeyButton,
-        Color3.fromRGB(28, 34, 43),
-        Color3.fromRGB(38, 46, 58)
-    )
-
-    local footer = create("TextLabel", main, {
-        Size = UDim2.new(1, -40, 0, 18),
-        Position = UDim2.new(0, 20, 1, -25),
+    local Footer = Create("TextLabel", MainFrame, {
+        Size = UDim2.new(1, -40, 0, 16),
+        Position = UDim2.new(0, 20, 1, -22),
         BackgroundTransparency = 1,
-        Text = "SECURE VERIFICATION GATEWAY",
-        TextColor3 = Color3.fromRGB(87, 96, 110),
+        Text = "POWERED BY DARKY HUB",
+        TextColor3 = Color3.fromRGB(75, 84, 99),
         Font = Enum.Font.GothamBold,
         TextSize = 8,
-        TextXAlignment = Enum.TextXAlignment.Center,
         ZIndex = 4
     })
 
     local busy = false
 
     local function setStatus(text, color)
-        statusText.Text = text
-        statusText.TextColor3 = color
-        statusDot.BackgroundColor3 = color
+        Status.Text = tostring(text)
+        Status.TextColor3 = color
+        StatusDot.BackgroundColor3 = color
     end
 
-    verifyButton.MouseButton1Click:Connect(function()
+    VerifyBtn.MouseButton1Click:Connect(function()
         if busy then
             return
         end
 
-        local key = keyInput.Text
+        local key = KeyInput.Text
 
-        if key == nil or key:gsub("%s+", "") == "" then
+        if not key or key:gsub("%s+", "") == "" then
             setStatus(
-                "Enter your key first.",
+                "Enter a key first.",
                 Color3.fromRGB(255, 170, 80)
             )
             return
@@ -1123,77 +932,72 @@ local function CreateGUI()
 
         busy = true
 
-        verifyButton.Text = "VERIFYING..."
-        verifyButton.Active = false
+        VerifyBtn.Text = "VERIFYING..."
 
         setStatus(
-            "Contacting PlatoBoost...",
-            Color3.fromRGB(90, 180, 255)
+            "Verifying with PlatoBoost...",
+            Color3.fromRGB(80, 175, 255)
         )
 
         task.spawn(function()
-            local success, message = redeemKey(key)
-
-            busy = false
-            verifyButton.Active = true
-            verifyButton.Text = "VERIFY KEY"
+            local success, msg = redeemKey(key)
 
             if success then
                 setStatus(
-                    "Verified. Loading Darky Hub...",
+                    "Success! Loading...",
                     Color3.fromRGB(80, 255, 145)
                 )
 
-                tween(main, 0.25, {
-                    BackgroundTransparency = 0.15
-                })
+                task.wait(0.5)
 
-                task.wait(0.55)
-
-                if screenGui.Parent then
-                    screenGui:Destroy()
+                if ScreenGui.Parent then
+                    ScreenGui:Destroy()
                 end
 
                 StartMainScript()
-            else
-                setStatus(
-                    tostring(message),
-                    Color3.fromRGB(255, 90, 105)
-                )
+                return
             end
+
+            busy = false
+            VerifyBtn.Text = "VERIFY KEY"
+
+            setStatus(
+                tostring(msg),
+                Color3.fromRGB(255, 80, 100)
+            )
         end)
     end)
 
-    getKeyButton.MouseButton1Click:Connect(function()
+    GetKeyBtn.MouseButton1Click:Connect(function()
         if busy then
             return
         end
 
         busy = true
-        getKeyButton.Text = "LOADING..."
+        GetKeyBtn.Text = "LOADING..."
 
         setStatus(
-            "Creating your key link...",
-            Color3.fromRGB(90, 180, 255)
+            "Getting key link...",
+            Color3.fromRGB(80, 175, 255)
         )
 
         task.spawn(function()
             local success, result = cacheLink()
 
             busy = false
-            getKeyButton.Text = "GET KEY"
+            GetKeyBtn.Text = "GET KEY"
 
             if success then
                 fSetClipboard(result)
 
                 setStatus(
-                    "Key link copied to clipboard.",
+                    "Link copied to clipboard!",
                     Color3.fromRGB(80, 255, 145)
                 )
             else
                 setStatus(
                     tostring(result),
-                    Color3.fromRGB(255, 90, 105)
+                    Color3.fromRGB(255, 80, 100)
                 )
             end
         end)
@@ -1207,7 +1011,7 @@ local function CreateGUI()
         end)
 
         if exists then
-            local savedKey
+            local savedKey = ""
 
             pcall(function()
                 savedKey = readfile(Config.KeyFileName)
@@ -1216,32 +1020,34 @@ local function CreateGUI()
             savedKey = tostring(savedKey or "")
 
             if savedKey ~= "" then
-                keyInput.Text = savedKey
+                KeyInput.Text = savedKey
 
                 setStatus(
-                    "Saved key found. Verifying...",
-                    Color3.fromRGB(90, 180, 255)
+                    "Saved key found, verifying...",
+                    Color3.fromRGB(80, 175, 255)
                 )
 
                 task.spawn(function()
-                    local success, message = redeemKey(savedKey)
+                    local success, msg =
+                        redeemKey(savedKey)
 
                     if success then
                         setStatus(
-                            "Auto-login successful.",
+                            "Auto-login success!",
                             Color3.fromRGB(80, 255, 145)
                         )
 
                         task.wait(0.5)
 
-                        if screenGui.Parent then
-                            screenGui:Destroy()
+                        if ScreenGui.Parent then
+                            ScreenGui:Destroy()
                         end
 
                         StartMainScript()
                     else
                         setStatus(
-                            "Saved key invalid: " .. tostring(message),
+                            "Saved key invalid: "
+                            .. tostring(msg),
                             Color3.fromRGB(255, 170, 80)
                         )
                     end
@@ -1251,29 +1057,29 @@ local function CreateGUI()
     end
 
     task.spawn(function()
-        while screenGui.Parent do
-            mainStroke.Transparency = 0.72
-
-            tween(mainStroke, 1.2, {
+        while ScreenGui.Parent do
+            Tween(MainStroke, 1.1, {
                 Transparency = 0.58
             })
 
-            task.wait(1.2)
+            task.wait(1.1)
 
-            if not screenGui.Parent then
+            if not ScreenGui.Parent then
                 break
             end
 
-            tween(mainStroke, 1.2, {
+            Tween(MainStroke, 1.1, {
                 Transparency = 0.78
             })
 
-            task.wait(1.2)
+            task.wait(1.1)
         end
     end)
 end
 
-if findMainGui() then
+if PlayerGui:FindFirstChild(Config.MainGuiName)
+    or CoreGui:FindFirstChild(Config.MainGuiName) then
+
     StartMainScript()
     return
 end
