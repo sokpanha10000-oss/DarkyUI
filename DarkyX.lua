@@ -303,8 +303,31 @@ function DarkyX:CreateWindow(config)
     local sidebarLayout = config.sidebarLayout == true
     local windowWidth = tonumber(config.width) or 550
     local windowHeight = tonumber(config.height) or 340
+    local isDefaultTheme = type(config.theme) ~= "table" and string.lower(tostring(config.theme or "default")) == "default"
     local elementBox = Color3.fromRGB(42, 43, 48)
     local elementBoxHover = Color3.fromRGB(52, 53, 59)
+    local elementBorder = isDefaultTheme and Color3.fromRGB(20, 21, 27) or theme.Border
+    local elementBorderTransparency = isDefaultTheme and 0.03 or 0.35
+    local elementStrokeThickness = isDefaultTheme and 1.2 or 1
+
+    local function styleElementBox(object, radius)
+        corner(object, UDim.new(0, radius or 11))
+        stroke(object, elementBorder, elementBorderTransparency, elementStrokeThickness)
+        if isDefaultTheme then
+            new("UIGradient", {
+                Name = "DefaultElementLight",
+                Rotation = 90,
+                Color = ColorSequence.new({
+                    ColorSequenceKeypoint.new(0, Color3.fromRGB(69, 70, 76)),
+                    ColorSequenceKeypoint.new(0.36, Color3.fromRGB(64, 65, 71)),
+                    ColorSequenceKeypoint.new(0.49, Color3.fromRGB(58, 59, 65)),
+                    ColorSequenceKeypoint.new(0.54, Color3.fromRGB(48, 49, 55)),
+                    ColorSequenceKeypoint.new(1, Color3.fromRGB(42, 43, 48)),
+                }),
+            }, object)
+        end
+    end
+
     local guiName = "DarkyX_" .. tostring(math.random(10000, 99999))
 
     local guiParent = CoreGui
@@ -1157,8 +1180,7 @@ function DarkyX:CreateWindow(config)
                 LayoutOrder = tab.Order,
                 ZIndex = 9,
             }, tab.Page)
-            corner(button, UDim.new(0, 11))
-            stroke(button, theme.Border, 0.35, 1)
+            styleElementBox(button, 11)
             setTextPair(button, element.name or "Button", element.description, theme, 9, -62, 10)
             local actionIcon = makeIcon(button, element.icon or "chevron-right", 16, theme.Muted, 12)
             if actionIcon then actionIcon.AnchorPoint = Vector2.new(1, 0.5); actionIcon.Position = UDim2.new(1, -14, 0.5, 0) end
@@ -1192,8 +1214,7 @@ function DarkyX:CreateWindow(config)
                 LayoutOrder = tab.Order,
                 ZIndex = 9,
             }, tab.Page)
-            corner(button, UDim.new(0, 11))
-            stroke(button, theme.Border, 0.35, 1)
+            styleElementBox(button, 11)
             setTextPair(button, element.name or "Toggle", element.description, theme, 8, -84, 10)
 
             local track = new("Frame", {
@@ -1275,8 +1296,7 @@ function DarkyX:CreateWindow(config)
                 Size = UDim2.new(1, 0, 0, closedHeight),
                 ZIndex = 13,
             }, holder)
-            corner(button, UDim.new(0, 11))
-            stroke(button, theme.Border, 0.38, 1)
+            styleElementBox(button, 11)
             setTextPair(button, element.name or "Dropdown", element.description, theme, 7, -140, 14)
 
             local valueLabel = new("TextLabel", {
@@ -1395,6 +1415,19 @@ function DarkyX:CreateWindow(config)
                             ZIndex = 18,
                         }, list)
                         corner(row, UDim.new(0, 8))
+                        if isDefaultTheme then
+                            stroke(row, elementBorder, 0.05, 1)
+                            new("UIGradient", {
+                                Name = "DefaultDropdownRowLight",
+                                Rotation = 90,
+                                Color = ColorSequence.new({
+                                    ColorSequenceKeypoint.new(0, Color3.fromRGB(62, 63, 68)),
+                                    ColorSequenceKeypoint.new(0.48, Color3.fromRGB(56, 57, 62)),
+                                    ColorSequenceKeypoint.new(0.53, Color3.fromRGB(46, 47, 52)),
+                                    ColorSequenceKeypoint.new(1, Color3.fromRGB(40, 41, 46)),
+                                }),
+                            }, row)
+                        end
                         local rowIcon = makeIcon(row, selected[text] and "check" or (element.optionIcon or "circle"), 14, selected[text] and theme.Accent2 or theme.Faint, 20)
                         if rowIcon then rowIcon.AnchorPoint = Vector2.new(0, 0.5); rowIcon.Position = UDim2.new(0, 10, 0.5, 0) end
                         new("TextLabel", {
@@ -1560,8 +1593,7 @@ function DarkyX:CreateWindow(config)
                 LayoutOrder = tab.Order,
                 ZIndex = 9,
             }, tab.Page)
-            corner(holder, UDim.new(0, 11))
-            stroke(holder, theme.Border, 0.35, 1)
+            styleElementBox(holder, 11)
             setTextPair(holder, element.name or "Slider", element.description, theme, 8, -30, 10)
             local valueLabel = new("TextLabel", {
                 BackgroundTransparency = 1,
@@ -1628,8 +1660,7 @@ function DarkyX:CreateWindow(config)
                 LayoutOrder = tab.Order,
                 ZIndex = 9,
             }, tab.Page)
-            corner(holder, UDim.new(0, 11))
-            stroke(holder, theme.Border, 0.35, 1)
+            styleElementBox(holder, 11)
             setTextPair(holder, element.name or "Input", element.description, theme, 8, -30, 10)
             local box = new("TextBox", {
                 BackgroundColor3 = theme.Panel2,
