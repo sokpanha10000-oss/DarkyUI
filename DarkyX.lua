@@ -858,38 +858,90 @@ function DarkyX:CreateWindow(config)
         floating.Position = UDim2.fromOffset(x, y)
     end
 
-    local meterWidth = tonumber(config.meterWidth) or 220
-    local meterHeight = tonumber(config.meterHeight) or 7
+    local dragBarWidth = tonumber(config.dragBarWidth or config.meterWidth) or 220
+    local dragBarHeight = tonumber(config.dragBarHeight or config.meterHeight) or 8
     local meterValue = math.clamp(tonumber(config.meterValue) or 0.72, 0, 1)
-    local meter = new("Frame", {
-        Name = "FloatingMeter",
-        BackgroundColor3 = Color3.fromRGB(28, 29, 33),
-        BackgroundTransparency = 0.3,
-        Size = UDim2.fromOffset(meterWidth, meterHeight),
-        Position = UDim2.fromOffset(0, 0),
-        ZIndex = 118,
-        Visible = false,
-    }, screenGui)
-    corner(meter, UDim.new(1, 0))
-    stroke(meter, Color3.fromRGB(92, 94, 101), 0.65, 1)
-    local meterFill = new("Frame", {
-        BackgroundColor3 = theme.Accent,
-        BackgroundTransparency = 0.03,
-        Size = UDim2.new(meterValue, 0, 1, 0),
-        ZIndex = 119,
-    }, meter)
-    corner(meterFill, UDim.new(1, 0))
 
-    local function placeFloatingMeterBelow()
+    -- DragBar lives directly under ScreenGui, never inside Main.
+    local dragBar = new("Frame", {
+        Name = "DragBar",
+        BackgroundColor3 = Color3.new(1, 1, 1),
+        BackgroundTransparency = 0.3,
+        BorderSizePixel = 0,
+        Size = UDim2.fromOffset(dragBarWidth, dragBarHeight),
+        Position = UDim2.fromOffset(0, 0),
+        ZIndex = 130,
+        Visible = false,
+        Active = true,
+    }, screenGui)
+    corner(dragBar, UDim.new(1, 0))
+    stroke(dragBar, Color3.new(1, 1, 1), 0.55, 1)
+
+    local dragFill = new("Frame", {
+        Name = "Fill",
+        BackgroundColor3 = Color3.new(1, 1, 1),
+        BackgroundTransparency = 0.02,
+        BorderSizePixel = 0,
+        Size = UDim2.new(meterValue, 0, 1, 0),
+        ZIndex = 131,
+    }, dragBar)
+    corner(dragFill, UDim.new(1, 0))
+
+    local dragKnob = new("Frame", {
+        Name = "Handle",
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        BackgroundColor3 = Color3.new(1, 1, 1),
+        BackgroundTransparency = 0,
+        BorderSizePixel = 0,
+        Position = UDim2.new(meterValue, 0, 0.5, 0),
+        Size = UDim2.fromOffset(math.max(10, dragBarHeight + 4), math.max(10, dragBarHeight + 4)),
+        ZIndex = 132,
+    }, dragBar)
+    corner(dragKnob, UDim.new(1, 0))
+
+    local function placeDragBarBelow()
         local mainPos = main.AbsolutePosition
         local mainSize = main.AbsoluteSize
         local viewport = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(1920, 1080)
-        local x = mainPos.X + (mainSize.X - meterWidth) * 0.5
-        local y = mainPos.Y + mainSize.Y + 8
-        x = math.clamp(x, 8, math.max(8, viewport.X - meterWidth - 8))
-        y = math.clamp(y, 8, math.max(8, viewport.Y - meterHeight - 8))
-        meter.Position = UDim2.fromOffset(x, y)
+        local x = mainPos.X + (mainSize.X - dragBarWidth) * 0.5
+        local y = mainPos.Y + mainSize.Y + 9
+        x = math.clamp(x, 8, math.max(8, viewport.X - dragBarWidth - 8))
+        y = math.max(4, y)
+        if y + dragBarHeight > viewport.Y - 4 then
+            y = viewport.Y - dragBarHeight - 4
+        end
+        dragBar.Position = UDim2.fromOffset(x, y)
+        dragBar.ZIndex = 130
     end
+
+    local draggingBar = false
+    local dragBarInputChangedConnection
+    local dragBarInputEndedConnection
+    local function setMeterFromInputX(screenX)
+        local left = dragBar.AbsolutePosition.X
+        local width = math.max(1, dragBar.AbsoluteSize.X)
+        meterValue = math.clamp((screenX - left) / width, 0, 1)
+        dragFill.Size = UDim2.new(meterValue, 0, 1, 0)
+        dragKnob.Position = UDim2.new(meterValue, 0, 0.5, 0)
+    end
+
+    dragBar.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            draggingBar = true
+            setMeterFromInputX(input.Position.X)
+        end
+    end)
+    dragBarInputChangedConnection = UserInputService.InputChanged:Connect(function(input)
+        if not draggingBar then return end
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            setMeterFromInputX(input.Position.X)
+        end
+    end)
+    dragBarInputEndedConnection = UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            draggingBar = false
+        end
+    end)
 
     makeDrag(floating, floating, function()
         if window.Visible then return end
@@ -905,14 +957,16 @@ function DarkyX:CreateWindow(config)
     end)
 
     local mainScale = main:FindFirstChildOfClass("UIScale")
-    main:GetPropertyChangedSignal("AbsolutePosition"):Connect(function()
-        if main.Visible then
-            placeFloatingMeterBelow()
+    local dragBarPositionConnection
+    dragBarPositionConnection = RunService.RenderStepped:Connect(function()
+        if window.Destroyed then
+            if dragBarPositionConnection then dragBarPositionConnection:Disconnect(); dragBarPositionConnection = nil end
+            if dragBarInputChangedConnection then dragBarInputChangedConnection:Disconnect(); dragBarInputChangedConnection = nil end
+            if dragBarInputEndedConnection then dragBarInputEndedConnection:Disconnect(); dragBarInputEndedConnection = nil end
+            return
         end
-    end)
-    main:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
-        if main.Visible then
-            placeFloatingMeterBelow()
+        if main.Visible and dragBar.Visible then
+            placeDragBarBelow()
         end
     end)
     local function setVisible(visible)
@@ -920,12 +974,12 @@ function DarkyX:CreateWindow(config)
         if visible then
             main.Visible = true
             floating.Visible = false
-            meter.Visible = true
-            placeFloatingMeterBelow()
+            dragBar.Visible = true
+            placeDragBarBelow()
             mainScale.Scale = 0.96
             tween(mainScale, 0.3, {Scale = 1}, Enum.EasingStyle.Back)
         else
-            meter.Visible = false
+            dragBar.Visible = false
             tween(mainScale, 0.2, {Scale = 0.95}, Enum.EasingStyle.Quint)
             task.delay(0.19, function()
                 if not window.Visible and main.Parent then main.Visible = false end
@@ -1777,7 +1831,8 @@ function DarkyX:CreateWindow(config)
 
     function window:SetMeter(value)
         meterValue = math.clamp(tonumber(value) or 0, 0, 1)
-        tween(meterFill, 0.24, {Size = UDim2.new(meterValue, 0, 1, 0)}, Enum.EasingStyle.Quint)
+        tween(dragFill, 0.24, {Size = UDim2.new(meterValue, 0, 1, 0)}, Enum.EasingStyle.Quint)
+        tween(dragKnob, 0.24, {Position = UDim2.new(meterValue, 0, 0.5, 0)}, Enum.EasingStyle.Quint)
     end
 
     function window:GetMeter()
@@ -1807,8 +1862,8 @@ function DarkyX:CreateWindow(config)
     task.delay(0.72, function()
         if window.Destroyed or not loaderTitle.Parent then return end
         main.Visible = true
-        meter.Visible = true
-        placeFloatingMeterBelow()
+        dragBar.Visible = true
+        placeDragBarBelow()
         mainScale.Scale = 0.94
         tween(loaderScale, 0.24, {Scale = 1.12}, Enum.EasingStyle.Quint)
         tween(loaderTitle, 0.22, {TextTransparency = 1})
