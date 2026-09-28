@@ -3,7 +3,6 @@ local DarkyX = {}
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
 local CoreGui = game:GetService("CoreGui")
 
 local LocalPlayer = Players.LocalPlayer
@@ -304,11 +303,11 @@ function DarkyX:CreateWindow(config)
     local windowWidth = tonumber(config.width) or 550
     local windowHeight = tonumber(config.height) or 340
     local isDefaultTheme = type(config.theme) ~= "table" and string.lower(tostring(config.theme or "default")) == "default"
-    local elementBox = Color3.fromRGB(42, 43, 48)
-    local elementBoxHover = Color3.fromRGB(52, 53, 59)
-    local elementBorder = isDefaultTheme and Color3.fromRGB(20, 21, 27) or theme.Border
-    local elementBorderTransparency = isDefaultTheme and 0.03 or 0.35
-    local elementStrokeThickness = isDefaultTheme and 1.2 or 1
+    local elementBox = isDefaultTheme and Color3.fromRGB(34, 35, 41) or theme.Element
+    local elementBoxHover = isDefaultTheme and Color3.fromRGB(43, 44, 51) or theme.ElementHover
+    local elementBorder = isDefaultTheme and Color3.fromRGB(101, 103, 111) or theme.Border
+    local elementBorderTransparency = isDefaultTheme and 0.28 or 0.35
+    local elementStrokeThickness = 1
 
     local function styleElementBox(object, radius)
         corner(object, UDim.new(0, radius or 11))
@@ -318,11 +317,11 @@ function DarkyX:CreateWindow(config)
                 Name = "DefaultElementLight",
                 Rotation = 90,
                 Color = ColorSequence.new({
-                    ColorSequenceKeypoint.new(0, Color3.fromRGB(69, 70, 76)),
-                    ColorSequenceKeypoint.new(0.36, Color3.fromRGB(64, 65, 71)),
-                    ColorSequenceKeypoint.new(0.49, Color3.fromRGB(58, 59, 65)),
-                    ColorSequenceKeypoint.new(0.54, Color3.fromRGB(48, 49, 55)),
-                    ColorSequenceKeypoint.new(1, Color3.fromRGB(42, 43, 48)),
+                    ColorSequenceKeypoint.new(0, Color3.fromRGB(48, 49, 56)),
+                    ColorSequenceKeypoint.new(0.34, Color3.fromRGB(44, 45, 52)),
+                    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(39, 40, 47)),
+                    ColorSequenceKeypoint.new(0.58, Color3.fromRGB(35, 36, 42)),
+                    ColorSequenceKeypoint.new(1, Color3.fromRGB(31, 32, 38)),
                 }),
             }, object)
         end
@@ -858,91 +857,6 @@ function DarkyX:CreateWindow(config)
         floating.Position = UDim2.fromOffset(x, y)
     end
 
-    local dragBarWidth = tonumber(config.dragBarWidth or config.meterWidth) or 220
-    local dragBarHeight = tonumber(config.dragBarHeight or config.meterHeight) or 8
-    local meterValue = math.clamp(tonumber(config.meterValue) or 0.72, 0, 1)
-
-    -- DragBar lives directly under ScreenGui, never inside Main.
-    local dragBar = new("Frame", {
-        Name = "DragBar",
-        BackgroundColor3 = Color3.new(1, 1, 1),
-        BackgroundTransparency = 0.3,
-        BorderSizePixel = 0,
-        Size = UDim2.fromOffset(dragBarWidth, dragBarHeight),
-        Position = UDim2.fromOffset(0, 0),
-        ZIndex = 130,
-        Visible = false,
-        Active = true,
-    }, screenGui)
-    corner(dragBar, UDim.new(1, 0))
-    stroke(dragBar, Color3.new(1, 1, 1), 0.55, 1)
-
-    local dragFill = new("Frame", {
-        Name = "Fill",
-        BackgroundColor3 = Color3.new(1, 1, 1),
-        BackgroundTransparency = 0.02,
-        BorderSizePixel = 0,
-        Size = UDim2.new(meterValue, 0, 1, 0),
-        ZIndex = 131,
-    }, dragBar)
-    corner(dragFill, UDim.new(1, 0))
-
-    local dragKnob = new("Frame", {
-        Name = "Handle",
-        AnchorPoint = Vector2.new(0.5, 0.5),
-        BackgroundColor3 = Color3.new(1, 1, 1),
-        BackgroundTransparency = 0,
-        BorderSizePixel = 0,
-        Position = UDim2.new(meterValue, 0, 0.5, 0),
-        Size = UDim2.fromOffset(math.max(10, dragBarHeight + 4), math.max(10, dragBarHeight + 4)),
-        ZIndex = 132,
-    }, dragBar)
-    corner(dragKnob, UDim.new(1, 0))
-
-    local function placeDragBarBelow()
-        local mainPos = main.AbsolutePosition
-        local mainSize = main.AbsoluteSize
-        local viewport = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(1920, 1080)
-        local x = mainPos.X + (mainSize.X - dragBarWidth) * 0.5
-        local y = mainPos.Y + mainSize.Y + 9
-        x = math.clamp(x, 8, math.max(8, viewport.X - dragBarWidth - 8))
-        y = math.max(4, y)
-        if y + dragBarHeight > viewport.Y - 4 then
-            y = viewport.Y - dragBarHeight - 4
-        end
-        dragBar.Position = UDim2.fromOffset(x, y)
-        dragBar.ZIndex = 130
-    end
-
-    local draggingBar = false
-    local dragBarInputChangedConnection
-    local dragBarInputEndedConnection
-    local function setMeterFromInputX(screenX)
-        local left = dragBar.AbsolutePosition.X
-        local width = math.max(1, dragBar.AbsoluteSize.X)
-        meterValue = math.clamp((screenX - left) / width, 0, 1)
-        dragFill.Size = UDim2.new(meterValue, 0, 1, 0)
-        dragKnob.Position = UDim2.new(meterValue, 0, 0.5, 0)
-    end
-
-    dragBar.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            draggingBar = true
-            setMeterFromInputX(input.Position.X)
-        end
-    end)
-    dragBarInputChangedConnection = UserInputService.InputChanged:Connect(function(input)
-        if not draggingBar then return end
-        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-            setMeterFromInputX(input.Position.X)
-        end
-    end)
-    dragBarInputEndedConnection = UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            draggingBar = false
-        end
-    end)
-
     makeDrag(floating, floating, function()
         if window.Visible then return end
         window:SetVisible(true)
@@ -957,29 +871,14 @@ function DarkyX:CreateWindow(config)
     end)
 
     local mainScale = main:FindFirstChildOfClass("UIScale")
-    local dragBarPositionConnection
-    dragBarPositionConnection = RunService.RenderStepped:Connect(function()
-        if window.Destroyed then
-            if dragBarPositionConnection then dragBarPositionConnection:Disconnect(); dragBarPositionConnection = nil end
-            if dragBarInputChangedConnection then dragBarInputChangedConnection:Disconnect(); dragBarInputChangedConnection = nil end
-            if dragBarInputEndedConnection then dragBarInputEndedConnection:Disconnect(); dragBarInputEndedConnection = nil end
-            return
-        end
-        if main.Visible and dragBar.Visible then
-            placeDragBarBelow()
-        end
-    end)
     local function setVisible(visible)
         window.Visible = visible
         if visible then
             main.Visible = true
             floating.Visible = false
-            dragBar.Visible = true
-            placeDragBarBelow()
             mainScale.Scale = 0.96
             tween(mainScale, 0.3, {Scale = 1}, Enum.EasingStyle.Back)
         else
-            dragBar.Visible = false
             tween(mainScale, 0.2, {Scale = 0.95}, Enum.EasingStyle.Quint)
             task.delay(0.19, function()
                 if not window.Visible and main.Parent then main.Visible = false end
@@ -1275,11 +1174,11 @@ function DarkyX:CreateWindow(config)
                 BackgroundColor3 = theme.Panel2,
                 AnchorPoint = Vector2.new(1, 0.5),
                 Position = UDim2.new(1, -14, 0.5, 0),
-                Size = UDim2.fromOffset(47, 25),
+                Size = UDim2.fromOffset(56, 25),
                 ZIndex = 11,
             }, button)
             corner(track, UDim.new(1, 0))
-            stroke(track, theme.Border2, 0.2, 1)
+            stroke(track, Color3.fromRGB(104, 106, 114), 0.28, 1)
             local trackGlow = new("Frame", {
                 BackgroundColor3 = theme.Accent,
                 BackgroundTransparency = 1,
@@ -1288,22 +1187,33 @@ function DarkyX:CreateWindow(config)
                 ZIndex = 10,
             }, track)
             corner(trackGlow, UDim.new(1, 0))
+            local knobGlow = new("Frame", {
+                BackgroundColor3 = Color3.new(1, 1, 1),
+                BackgroundTransparency = 0.88,
+                AnchorPoint = Vector2.new(0, 0.5),
+                Position = UDim2.new(0, 0, 0.5, 0),
+                Size = UDim2.fromOffset(33, 19),
+                ZIndex = 11,
+            }, track)
+            corner(knobGlow, UDim.new(1, 0))
             local knob = new("Frame", {
                 BackgroundColor3 = theme.Muted,
                 AnchorPoint = Vector2.new(0, 0.5),
                 Position = UDim2.new(0, 4, 0.5, 0),
-                Size = UDim2.fromOffset(17, 17),
+                Size = UDim2.fromOffset(28, 13),
                 ZIndex = 12,
             }, track)
             corner(knob, UDim.new(1, 0))
-            stroke(knob, Color3.new(1, 1, 1), 0.88, 1)
+            stroke(knob, Color3.new(1, 1, 1), 0.72, 1)
 
             local function apply(stateValue, fire)
                 state = stateValue == true
-                local x = state and UDim2.new(1, -21, 0.5, 0) or UDim2.new(0, 4, 0.5, 0)
+                local x = state and UDim2.new(1, -32, 0.5, 0) or UDim2.new(0, 4, 0.5, 0)
+                local glowX = state and UDim2.new(1, -36, 0.5, 0) or UDim2.new(0, 0, 0.5, 0)
                 tween(track, 0.19, {BackgroundColor3 = state and theme.AccentDark or theme.Panel2})
                 tween(trackGlow, 0.2, {BackgroundTransparency = state and 0.1 or 1})
-                tween(knob, 0.22, {Position = x, BackgroundColor3 = state and theme.White or theme.Muted}, Enum.EasingStyle.Back)
+                tween(knob, 0.22, {Position = x, BackgroundColor3 = state and theme.White or theme.Muted}, Enum.EasingStyle.Quint)
+                tween(knobGlow, 0.22, {Position = glowX, BackgroundTransparency = state and 0.78 or 0.9, Size = state and UDim2.fromOffset(37, 21) or UDim2.fromOffset(33, 19)}, Enum.EasingStyle.Quint)
                 if fire and typeof(element.callback) == "function" then task.spawn(element.callback, state) end
             end
             apply(state, false)
@@ -1668,8 +1578,18 @@ function DarkyX:CreateWindow(config)
             corner(track, UDim.new(1, 0))
             local fill = new("Frame", {BackgroundColor3 = theme.Accent, Size = UDim2.fromScale(0, 1), ZIndex = 12}, track)
             corner(fill, UDim.new(1, 0))
-            local knob = new("Frame", {BackgroundColor3 = theme.White, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0, 0.5), Size = UDim2.fromOffset(15, 15), ZIndex = 13}, track)
+            local knobGlow = new("Frame", {
+                BackgroundColor3 = Color3.new(1, 1, 1),
+                BackgroundTransparency = 0.84,
+                AnchorPoint = Vector2.new(0.5, 0.5),
+                Position = UDim2.fromScale(0, 0.5),
+                Size = UDim2.fromOffset(27, 20),
+                ZIndex = 12,
+            }, track)
+            corner(knobGlow, UDim.new(1, 0))
+            local knob = new("Frame", {BackgroundColor3 = theme.White, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0, 0.5), Size = UDim2.fromOffset(22, 12), ZIndex = 13}, track)
             corner(knob, UDim.new(1, 0))
+            stroke(knob, Color3.new(1, 1, 1), 0.72, 1)
             local draggingSlider = false
             local function apply(valueValue, fire)
                 local increment = tonumber(element.increment) or 1
@@ -1678,6 +1598,7 @@ function DarkyX:CreateWindow(config)
                 local alpha = (value - minValue) / math.max(maxValue - minValue, 0.0001)
                 fill.Size = UDim2.fromScale(alpha, 1)
                 knob.Position = UDim2.new(alpha, 0, 0.5, 0)
+                knobGlow.Position = UDim2.new(alpha, 0, 0.5, 0)
                 valueLabel.Text = tostring(value) .. tostring(element.suffix or "")
                 if fire and typeof(element.callback) == "function" then task.spawn(element.callback, value) end
             end
@@ -1829,16 +1750,6 @@ function DarkyX:CreateWindow(config)
         setSettingsStatus("Loaded")
     end)
 
-    function window:SetMeter(value)
-        meterValue = math.clamp(tonumber(value) or 0, 0, 1)
-        tween(dragFill, 0.24, {Size = UDim2.new(meterValue, 0, 1, 0)}, Enum.EasingStyle.Quint)
-        tween(dragKnob, 0.24, {Position = UDim2.new(meterValue, 0, 0.5, 0)}, Enum.EasingStyle.Quint)
-    end
-
-    function window:GetMeter()
-        return meterValue
-    end
-
     function window:Toggle()
         setVisible(not window.Visible)
     end
@@ -1862,8 +1773,7 @@ function DarkyX:CreateWindow(config)
     task.delay(0.72, function()
         if window.Destroyed or not loaderTitle.Parent then return end
         main.Visible = true
-        dragBar.Visible = true
-        placeDragBarBelow()
+        floating.Visible = false
         mainScale.Scale = 0.94
         tween(loaderScale, 0.24, {Scale = 1.12}, Enum.EasingStyle.Quint)
         tween(loaderTitle, 0.22, {TextTransparency = 1})
