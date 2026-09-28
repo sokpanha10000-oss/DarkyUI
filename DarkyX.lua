@@ -71,6 +71,27 @@ local Themes = {
     },
 }
 
+Themes.default = {
+    Background = Color3.fromRGB(2, 3, 5),
+    Background2 = Color3.fromRGB(4, 5, 8),
+    Panel = Color3.fromRGB(5, 6, 9),
+    Panel2 = Color3.fromRGB(7, 8, 12),
+    Element = Color3.fromRGB(10, 11, 16),
+    ElementHover = Color3.fromRGB(16, 17, 24),
+    ElementPressed = Color3.fromRGB(21, 23, 32),
+    Accent = Color3.fromRGB(92, 145, 255),
+    Accent2 = Color3.fromRGB(142, 183, 255),
+    AccentDark = Color3.fromRGB(31, 60, 120),
+    Text = Color3.fromRGB(246, 248, 252),
+    Muted = Color3.fromRGB(134, 141, 155),
+    Faint = Color3.fromRGB(77, 83, 96),
+    Border = Color3.fromRGB(18, 20, 27),
+    Border2 = Color3.fromRGB(28, 31, 41),
+    Danger = Color3.fromRGB(255, 72, 91),
+    Success = Color3.fromRGB(67, 221, 147),
+    White = Color3.new(1, 1, 1),
+}
+
 local Icons = {lucide = {}}
 pcall(function()
     local source = "https://raw.githubusercontent.com/Footagesus/Icons/refs/heads/main/lucide/dist/Icons.lua"
@@ -131,7 +152,7 @@ local function getTheme(theme)
     if type(theme) == "table" then
         return theme
     end
-    return Themes[string.lower(tostring(theme or "cobalt"))] or Themes.cobalt
+    return Themes[string.lower(tostring(theme or "default"))] or Themes.default
 end
 
 local function resolveIcon(icon)
@@ -274,7 +295,7 @@ end
 
 function DarkyX:CreateWindow(config)
     config = config or {}
-    local theme = getTheme(config.theme)
+    local theme = getTheme(config.theme or "Default")
     local sidebarLayout = config.sidebarLayout == true
     local windowWidth = tonumber(config.width) or 550
     local windowHeight = tonumber(config.height) or 340
@@ -301,93 +322,27 @@ function DarkyX:CreateWindow(config)
         Sidebar = sidebarLayout,
         Destroyed = false,
         Visible = true,
+        _StateEntries = {},
+        _SearchItems = {},
+        _Keybind = config.keybind or Enum.KeyCode.RightControl,
     }
 
-    local loading = new("Frame", {
-        BackgroundColor3 = theme.Background,
-        Size = UDim2.fromScale(1, 1),
-        ZIndex = 200,
-    }, screenGui)
-    gradient(loading, {
-        ColorSequenceKeypoint.new(0, theme.Background),
-        ColorSequenceKeypoint.new(0.5, theme.Background2),
-        ColorSequenceKeypoint.new(1, theme.Background),
-    }, 135)
-
-    local loadGlow = new("Frame", {
-        BackgroundColor3 = theme.Accent,
-        BackgroundTransparency = 0.92,
-        AnchorPoint = Vector2.new(0.5, 0.5),
-        Position = UDim2.fromScale(0.5, 0.48),
-        Size = UDim2.fromOffset(230, 95),
-        ZIndex = 201,
-    }, loading)
-    corner(loadGlow, UDim.new(1, 0))
-
-    local bigText = new("TextLabel", {
+    local loaderTitle = new("TextLabel", {
+        Name = "LoadingTitle",
         BackgroundTransparency = 1,
         Text = "DarkyX",
         TextColor3 = theme.Text,
         TextTransparency = 1,
-        TextStrokeColor3 = theme.Accent,
-        TextStrokeTransparency = 1,
         Font = Enum.Font.GothamBlack,
         TextSize = 74,
         AnchorPoint = Vector2.new(0.5, 0.5),
-        Position = UDim2.fromScale(0.5, 0.46),
-        Size = UDim2.fromOffset(500, 90),
-        ZIndex = 203,
-    }, loading)
-    local bigScale = addScale(bigText, 0.68)
-
-    local glowText = new("TextLabel", {
-        BackgroundTransparency = 1,
-        Text = "DarkyX",
-        TextColor3 = theme.Accent,
-        TextTransparency = 1,
-        Font = Enum.Font.GothamBlack,
-        TextSize = 74,
-        AnchorPoint = Vector2.new(0.5, 0.5),
-        Position = UDim2.fromScale(0.5, 0.46),
-        Size = UDim2.fromOffset(500, 90),
-        ZIndex = 202,
-    }, loading)
-    addScale(glowText, 0.72)
-
-    local loadingLabel = new("TextLabel", {
-        BackgroundTransparency = 1,
-        Text = tostring(config.subtitle or "DarkyX UI Library"),
-        TextColor3 = theme.Muted,
-        TextTransparency = 1,
-        Font = Enum.Font.GothamMedium,
-        TextSize = 12,
-        AnchorPoint = Vector2.new(0.5, 0),
-        Position = UDim2.fromScale(0.5, 0.565),
-        Size = UDim2.fromOffset(360, 24),
-        ZIndex = 204,
-    }, loading)
-
-    local loadingTrack = new("Frame", {
-        BackgroundColor3 = theme.Element,
-        BackgroundTransparency = 0.15,
-        AnchorPoint = Vector2.new(0.5, 0),
-        Position = UDim2.fromScale(0.5, 0.625),
-        Size = UDim2.fromOffset(210, 3),
-        ZIndex = 204,
-    }, loading)
-    corner(loadingTrack, UDim.new(1, 0))
-    local loadingFill = new("Frame", {
-        BackgroundColor3 = theme.Accent,
-        Size = UDim2.new(0, 0, 1, 0),
-        ZIndex = 205,
-    }, loadingTrack)
-    corner(loadingFill, UDim.new(1, 0))
-
-    tween(glowText, 0.45, {TextTransparency = 0.62})
-    tween(bigText, 0.52, {TextTransparency = 0, TextStrokeTransparency = 0.45})
-    tween(bigScale, 0.6, {Scale = 1}, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-    tween(loadingLabel, 0.4, {TextTransparency = 0})
-    tween(loadingFill, 0.58, {Size = UDim2.fromScale(1, 1)}, Enum.EasingStyle.Quint)
+        Position = UDim2.fromScale(0.5, 0.5),
+        Size = UDim2.fromOffset(520, 90),
+        ZIndex = 200,
+    }, screenGui)
+    local loaderScale = addScale(loaderTitle, 0.76)
+    tween(loaderTitle, 0.38, {TextTransparency = 0})
+    tween(loaderScale, 0.48, {Scale = 1}, Enum.EasingStyle.Back)
 
     local main = new("Frame", {
         Name = "Main",
@@ -397,40 +352,27 @@ function DarkyX:CreateWindow(config)
         ZIndex = 5,
     }, screenGui)
     corner(main, UDim.new(0, 17))
-    stroke(main, theme.Border, 0.1, 1)
     addScale(main, 0.95)
-
-    local ambient = new("Frame", {
-        Name = "AmbientGlow",
-        BackgroundColor3 = theme.Accent,
-        BackgroundTransparency = 0.965,
-        Position = UDim2.fromOffset(1, 1),
-        Size = UDim2.new(1, -2, 1, -2),
-        ZIndex = 5,
-    }, main)
-    corner(ambient, UDim.new(0, 16))
 
     local topBar = new("Frame", {
         BackgroundTransparency = 1,
-        Size = UDim2.new(1, 0, 0, 62),
+        Size = UDim2.new(1, 0, 0, 58),
         ZIndex = 10,
     }, main)
     makeDrag(topBar, main)
 
     local titleWrap = new("Frame", {
         BackgroundTransparency = 1,
-        Position = UDim2.fromOffset(17, 10),
-        Size = UDim2.fromOffset(300, 43),
+        Position = UDim2.fromOffset(14, 8),
+        Size = UDim2.fromOffset(305, 42),
         ZIndex = 11,
     }, topBar)
-    local titleAccent = new("Frame", {
-        BackgroundColor3 = theme.Accent,
-        BackgroundTransparency = 0.1,
-        Position = UDim2.fromOffset(0, 5),
-        Size = UDim2.fromOffset(3, 31),
-        ZIndex = 12,
-    }, titleWrap)
-    corner(titleAccent, UDim.new(1, 0))
+    local titleImage = makeIcon(titleWrap, config.Image or "rbxassetid://0", 28, theme.Text, 12)
+    if titleImage then
+        titleImage.Position = UDim2.fromOffset(0, 6)
+        titleImage.ImageColor3 = theme.Text
+    end
+    local titleLeft = titleImage and 38 or 0
     new("TextLabel", {
         BackgroundTransparency = 1,
         Text = tostring(config.name or "DarkyX Hub"),
@@ -438,8 +380,8 @@ function DarkyX:CreateWindow(config)
         Font = Enum.Font.GothamBold,
         TextSize = 17,
         TextXAlignment = Enum.TextXAlignment.Left,
-        Position = UDim2.fromOffset(12, 0),
-        Size = UDim2.new(1, -12, 0, 23),
+        Position = UDim2.fromOffset(titleLeft, 0),
+        Size = UDim2.new(1, -titleLeft, 0, 24),
         ZIndex = 11,
     }, titleWrap)
     new("TextLabel", {
@@ -449,8 +391,8 @@ function DarkyX:CreateWindow(config)
         Font = Enum.Font.Gotham,
         TextSize = 10,
         TextXAlignment = Enum.TextXAlignment.Left,
-        Position = UDim2.fromOffset(12, 23),
-        Size = UDim2.new(1, -12, 0, 18),
+        Position = UDim2.fromOffset(titleLeft, 22),
+        Size = UDim2.new(1, -titleLeft, 0, 17),
         ZIndex = 11,
     }, titleWrap)
 
@@ -458,7 +400,7 @@ function DarkyX:CreateWindow(config)
         BackgroundTransparency = 1,
         AnchorPoint = Vector2.new(1, 0),
         Position = UDim2.new(1, -11, 0, 10),
-        Size = UDim2.fromOffset(66, 30),
+        Size = UDim2.fromOffset(142, 30),
         ZIndex = 15,
     }, topBar)
     new("UIListLayout", {
@@ -492,13 +434,177 @@ function DarkyX:CreateWindow(config)
         return b, i
     end
 
+    local searchButton, searchButtonIcon = makeControl("search", theme.Muted)
+    local settingsButton, settingsButtonIcon = makeControl("settings", theme.Muted)
     local minimize, minimizeIcon = makeControl("minus", theme.Muted)
     local close, closeIcon = makeControl("x", theme.Danger)
 
+    local searchPanel = new("Frame", {
+        BackgroundColor3 = theme.Panel2,
+        BackgroundTransparency = 0.02,
+        AnchorPoint = Vector2.new(1, 0),
+        Position = UDim2.new(1, -10, 0, 47),
+        Size = UDim2.fromOffset(300, 38),
+        Visible = false,
+        ZIndex = 40,
+    }, main)
+    corner(searchPanel, UDim.new(0, 11))
+    stroke(searchPanel, theme.Border2, 0.2, 1)
+    local searchPanelIcon = makeIcon(searchPanel, "search", 15, theme.Muted, 42)
+    if searchPanelIcon then searchPanelIcon.Position = UDim2.fromOffset(11, 11) end
+    local searchBox = new("TextBox", {
+        BackgroundTransparency = 1,
+        ClearTextOnFocus = false,
+        PlaceholderText = "Search current tab...",
+        PlaceholderColor3 = theme.Muted,
+        Text = "",
+        TextColor3 = theme.Text,
+        Font = Enum.Font.Gotham,
+        TextSize = 11,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Position = UDim2.fromOffset(33, 0),
+        Size = UDim2.new(1, -72, 1, 0),
+        ZIndex = 42,
+    }, searchPanel)
+    local searchClose = new("TextButton", {
+        AutoButtonColor = false,
+        BackgroundColor3 = theme.Danger,
+        BackgroundTransparency = 0.06,
+        Text = "",
+        AnchorPoint = Vector2.new(1, 0.5),
+        Position = UDim2.new(1, -6, 0.5, 0),
+        Size = UDim2.fromOffset(25, 25),
+        ZIndex = 43,
+    }, searchPanel)
+    corner(searchClose, UDim.new(0, 8))
+    local searchCloseIcon = makeIcon(searchClose, "x", 13, theme.White, 44)
+    if searchCloseIcon then searchCloseIcon.AnchorPoint = Vector2.new(0.5, 0.5); searchCloseIcon.Position = UDim2.fromScale(0.5, 0.5) end
+
+    local settingsPanel = new("Frame", {
+        BackgroundColor3 = theme.Panel,
+        BackgroundTransparency = 0.01,
+        AnchorPoint = Vector2.new(0, 0),
+        Position = UDim2.new(1, 0, 0, 58),
+        Size = UDim2.new(0, 220, 1, -58),
+        ClipsDescendants = true,
+        Visible = false,
+        ZIndex = 50,
+    }, main)
+    corner(settingsPanel, UDim.new(0, 14))
+    local settingsTitle = new("TextLabel", {
+        BackgroundTransparency = 1,
+        Text = "Settings",
+        TextColor3 = theme.Text,
+        Font = Enum.Font.GothamBold,
+        TextSize = 16,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Position = UDim2.fromOffset(16, 14),
+        Size = UDim2.new(1, -32, 0, 24),
+        ZIndex = 52,
+    }, settingsPanel)
+    new("TextLabel", {
+        BackgroundTransparency = 1,
+        Text = "Keybind",
+        TextColor3 = theme.Muted,
+        Font = Enum.Font.GothamMedium,
+        TextSize = 11,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Position = UDim2.fromOffset(16, 55),
+        Size = UDim2.new(1, -32, 0, 18),
+        ZIndex = 52,
+    }, settingsPanel)
+    local keybindButton = new("TextButton", {
+        AutoButtonColor = false,
+        BackgroundColor3 = theme.Element,
+        TextColor3 = theme.Text,
+        Font = Enum.Font.GothamMedium,
+        TextSize = 11,
+        Text = tostring(window._Keybind.Name),
+        Position = UDim2.fromOffset(16, 77),
+        Size = UDim2.new(1, -32, 0, 34),
+        ZIndex = 52,
+    }, settingsPanel)
+    corner(keybindButton, UDim.new(0, 9))
+    stroke(keybindButton, theme.Border2, 0.25, 1)
+    local keybindHint = new("TextLabel", {
+        BackgroundTransparency = 1,
+        Text = "Click, then press a keyboard key",
+        TextColor3 = theme.Faint,
+        Font = Enum.Font.Gotham,
+        TextSize = 9,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Position = UDim2.fromOffset(16, 114),
+        Size = UDim2.new(1, -32, 0, 16),
+        ZIndex = 52,
+    }, settingsPanel)
+    new("TextLabel", {
+        BackgroundTransparency = 1,
+        Text = "Save Manager",
+        TextColor3 = theme.Muted,
+        Font = Enum.Font.GothamMedium,
+        TextSize = 11,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Position = UDim2.fromOffset(16, 149),
+        Size = UDim2.new(1, -32, 0, 18),
+        ZIndex = 52,
+    }, settingsPanel)
+    local saveRow = new("Frame", {BackgroundTransparency = 1, Position = UDim2.fromOffset(16, 173), Size = UDim2.new(1, -32, 0, 36), ZIndex = 52}, settingsPanel)
+    local saveButton = new("TextButton", {AutoButtonColor = false, BackgroundColor3 = theme.Element, Text = "Save", TextColor3 = theme.Text, Font = Enum.Font.GothamMedium, TextSize = 10, Size = UDim2.new(0.5, -4, 1, 0), ZIndex = 53}, saveRow)
+    corner(saveButton, UDim.new(0, 9))
+    local loadButton = new("TextButton", {AutoButtonColor = false, BackgroundColor3 = theme.Element, Text = "Load", TextColor3 = theme.Text, Font = Enum.Font.GothamMedium, TextSize = 10, Position = UDim2.new(0.5, 4, 0, 0), Size = UDim2.new(0.5, -4, 1, 0), ZIndex = 53}, saveRow)
+    corner(loadButton, UDim.new(0, 9))
+    local settingsStatus = new("TextLabel", {BackgroundTransparency = 1, Text = "", TextColor3 = theme.Success, Font = Enum.Font.Gotham, TextSize = 9, TextXAlignment = Enum.TextXAlignment.Left, Position = UDim2.fromOffset(16, 217), Size = UDim2.new(1, -32, 0, 16), ZIndex = 52}, settingsPanel)
+
+    local function setPanelOpen(panel, buttonIcon)
+        local opening = not panel.Visible
+        panel.Visible = true
+        local targetX = opening and UDim2.new(1, -220, 0, 58) or UDim2.new(1, 0, 0, 58)
+        if opening then
+            panel.Position = UDim2.new(1, 0, 0, 58)
+            tween(panel, 0.28, {Position = targetX}, Enum.EasingStyle.Quint)
+            if buttonIcon then tween(buttonIcon, 0.18, {ImageColor3 = theme.Accent2}) end
+        else
+            tween(panel, 0.22, {Position = targetX}, Enum.EasingStyle.Quint)
+            task.delay(0.23, function() if panel.Parent and panel.Position.X.Scale == 1 then panel.Visible = false end end)
+            if buttonIcon then tween(buttonIcon, 0.18, {ImageColor3 = theme.Muted}) end
+        end
+        return opening
+    end
+
+    local currentTab
+
+    local function closeSearchPanel()
+        searchBox.Text = ""
+        searchPanel.Visible = false
+        if searchButtonIcon then tween(searchButtonIcon, 0.18, {ImageColor3 = theme.Muted}) end
+        for _, entry in ipairs(window._SearchItems) do
+            entry.Holder.Visible = entry.Tab == currentTab
+        end
+    end
+
+    searchButton.MouseButton1Click:Connect(function()
+        searchPanel.Visible = not searchPanel.Visible
+        if searchPanel.Visible then
+            tween(searchButtonIcon, 0.18, {ImageColor3 = theme.Accent2})
+            if settingsPanel.Visible then
+                tween(settingsPanel, 0.2, {Position = UDim2.new(1, 0, 0, 58)}, Enum.EasingStyle.Quint)
+                task.delay(0.21, function() if settingsPanel.Parent then settingsPanel.Visible = false end end)
+            end
+            task.defer(function() if searchBox.Parent then searchBox:CaptureFocus() end end)
+        else
+            closeSearchPanel()
+        end
+    end)
+    searchClose.MouseButton1Click:Connect(closeSearchPanel)
+    settingsButton.MouseButton1Click:Connect(function()
+        setPanelOpen(settingsPanel, settingsButtonIcon)
+        if searchPanel.Visible then closeSearchPanel() end
+    end)
+
     local content = new("Frame", {
         BackgroundTransparency = 1,
-        Position = UDim2.fromOffset(10, 62),
-        Size = UDim2.new(1, -20, 1, -72),
+        Position = UDim2.fromOffset(10, 58),
+        Size = UDim2.new(1, -20, 1, -68),
         ZIndex = 7,
     }, main)
 
@@ -509,13 +615,11 @@ function DarkyX:CreateWindow(config)
 
     if sidebarLayout then
         tabShell = new("Frame", {
-            BackgroundColor3 = theme.Panel,
+            BackgroundTransparency = 1,
             Position = UDim2.fromOffset(0, 0),
             Size = UDim2.new(0, 144, 1, 0),
             ZIndex = 8,
         }, content)
-        corner(tabShell, UDim.new(0, 13))
-        stroke(tabShell, theme.Border, 0.25, 1)
         tabBar = new("ScrollingFrame", {
             BackgroundTransparency = 1,
             BorderSizePixel = 0,
@@ -538,13 +642,11 @@ function DarkyX:CreateWindow(config)
         }, content)
     else
         tabShell = new("Frame", {
-            BackgroundColor3 = theme.Panel,
+            BackgroundTransparency = 1,
             Position = UDim2.fromOffset(0, 0),
             Size = UDim2.new(1, 0, 0, 42),
             ZIndex = 8,
         }, content)
-        corner(tabShell, UDim.new(0, 12))
-        stroke(tabShell, theme.Border, 0.3, 1)
         tabBar = new("ScrollingFrame", {
             BackgroundTransparency = 1,
             BorderSizePixel = 0,
@@ -573,7 +675,7 @@ function DarkyX:CreateWindow(config)
         BackgroundColor3 = theme.Panel,
         BackgroundTransparency = 0.03,
         Text = "",
-        Position = UDim2.new(1, -floatingWidth - 18, 1, -floatingHeight - 18),
+        Position = UDim2.fromOffset(0, 0),
         Size = UDim2.fromOffset(floatingWidth, floatingHeight),
         ZIndex = 120,
         Visible = false,
@@ -585,15 +687,7 @@ function DarkyX:CreateWindow(config)
         ColorSequenceKeypoint.new(0.5, theme.Panel),
         ColorSequenceKeypoint.new(1, theme.Element),
     }, 0)
-    local floatingAccent = new("Frame", {
-        BackgroundColor3 = theme.Accent,
-        BackgroundTransparency = 0.15,
-        Position = UDim2.fromOffset(2, 2),
-        Size = UDim2.new(0, 3, 1, -4),
-        ZIndex = 121,
-    }, floating)
-    corner(floatingAccent, UDim.new(1, 0))
-    local floatingIcon = makeIcon(floating, config.floatingIcon or "panel-top", 18, theme.Accent2, 123)
+    local floatingIcon = makeIcon(floating, config.floatingIcon or config.Image or "panel-top", 18, theme.Accent2, 123)
     if floatingIcon then floatingIcon.Position = UDim2.fromOffset(17, 12); addScale(floatingIcon, 1) end
     new("TextLabel", {
         BackgroundTransparency = 1,
@@ -617,6 +711,17 @@ function DarkyX:CreateWindow(config)
         Size = UDim2.new(1, -56, 0, 13),
         ZIndex = 123,
     }, floating)
+    local function placeFloatingAbove()
+        local mainPos = main.AbsolutePosition
+        local mainSize = main.AbsoluteSize
+        local viewport = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(1920, 1080)
+        local x = mainPos.X + (mainSize.X - floatingWidth) * 0.5
+        local y = mainPos.Y - floatingHeight - 10
+        x = math.clamp(x, 8, math.max(8, viewport.X - floatingWidth - 8))
+        y = math.max(8, y)
+        floating.Position = UDim2.fromOffset(x, y)
+    end
+
     makeDrag(floating, floating, function()
         if window.Visible then return end
         window:SetVisible(true)
@@ -644,6 +749,7 @@ function DarkyX:CreateWindow(config)
                 if not window.Visible and main.Parent then main.Visible = false end
             end)
             floating.Visible = true
+            placeFloatingAbove()
             floating.Size = UDim2.fromOffset(floatingWidth - 6, floatingHeight - 2)
             tween(floating, 0.28, {Size = UDim2.fromOffset(floatingWidth, floatingHeight)}, Enum.EasingStyle.Back)
         end
@@ -658,7 +764,6 @@ function DarkyX:CreateWindow(config)
         window:Destroy()
     end)
 
-    local currentTab
     local dropdowns = {}
 
     local function buildPage(tab)
@@ -695,21 +800,43 @@ function DarkyX:CreateWindow(config)
         currentTab = tab
         for _, other in ipairs(window.Tabs) do
             other.Page.Visible = false
-            other.TabButton.BackgroundColor3 = theme.Element
-            other.TabButton.BackgroundTransparency = 0.2
+            other.TabButton.BackgroundTransparency = 1
             other.TabText.TextColor3 = theme.Muted
             if other.Icon then other.Icon.ImageColor3 = theme.Muted end
-            if other.Indicator then other.Indicator.Size = UDim2.fromOffset(0, 2) end
-            if other.Glass then other.Glass.BackgroundTransparency = 1 end
         end
         tab.Page.Visible = true
-        tab.TabButton.BackgroundColor3 = theme.ElementHover
-        tab.TabButton.BackgroundTransparency = 0.05
+        tab.TabButton.BackgroundTransparency = 1
         tab.TabText.TextColor3 = theme.Text
         if tab.Icon then tab.Icon.ImageColor3 = theme.Accent2; iconPop(tab.Icon) end
-        if tab.Indicator then tween(tab.Indicator, 0.22, {Size = UDim2.new(1, -20, 0, 2)}, Enum.EasingStyle.Back) end
-        if tab.Glass then tween(tab.Glass, 0.22, {BackgroundTransparency = 0.88}) end
+        if searchPanel.Visible then
+            filterCurrentTabSearch(searchBox.Text)
+        else
+            for _, entry in ipairs(window._SearchItems) do
+                if entry.Tab == tab then entry.Holder.Visible = true end
+            end
+        end
     end
+
+    local function registerSearchItem(tab, holder, name, description)
+        table.insert(window._SearchItems, {
+            Tab = tab,
+            Holder = holder,
+            Text = string.lower(tostring(name or "") .. " " .. tostring(description or "")),
+        })
+    end
+
+    local function filterCurrentTabSearch(query)
+        query = string.lower(query or "")
+        for _, entry in ipairs(window._SearchItems) do
+            if entry.Tab == currentTab then
+                entry.Holder.Visible = query == "" or string.find(entry.Text, query, 1, true) ~= nil
+            end
+        end
+    end
+
+    searchBox:GetPropertyChangedSignal("Text"):Connect(function()
+        if searchPanel.Visible then filterCurrentTabSearch(searchBox.Text) end
+    end)
 
     function window:CreateTab(tabConfig)
         tabConfig = tabConfig or {}
@@ -723,22 +850,12 @@ function DarkyX:CreateWindow(config)
         local tabButton = new("TextButton", {
             AutoButtonColor = false,
             BackgroundColor3 = theme.Element,
-            BackgroundTransparency = 0.2,
+            BackgroundTransparency = 1,
             Text = "",
             Size = sidebarLayout and UDim2.new(1, 0, 0, 40) or UDim2.fromOffset(math.clamp(74 + #tab.Name * 6, 96, 150), 34),
             LayoutOrder = #window.Tabs + 1,
             ZIndex = 10,
         }, tabBar)
-        corner(tabButton, UDim.new(0, 10))
-        stroke(tabButton, theme.Border, 0.5, 1)
-        local glass = new("Frame", {
-            Name = "Glass",
-            BackgroundColor3 = theme.White,
-            BackgroundTransparency = 1,
-            Size = UDim2.fromScale(1, 1),
-            ZIndex = 10,
-        }, tabButton)
-        corner(glass, UDim.new(0, 10))
         local icon = makeIcon(tabButton, tab.IconData, 16, theme.Muted, 13)
         if icon then
             icon.Position = sidebarLayout and UDim2.fromOffset(12, 12) or UDim2.fromOffset(10, 9)
@@ -756,32 +873,24 @@ function DarkyX:CreateWindow(config)
             Size = sidebarLayout and UDim2.new(1, -46, 1, 0) or UDim2.new(1, -42, 1, 0),
             ZIndex = 14,
         }, tabButton)
-        local indicator = new("Frame", {
-            BackgroundColor3 = theme.Accent,
-            Position = sidebarLayout and UDim2.new(0, 5, 0.5, -10) or UDim2.new(0, 10, 1, -4),
-            Size = sidebarLayout and UDim2.fromOffset(2, 20) or UDim2.fromOffset(0, 2),
-            ZIndex = 14,
-        }, tabButton)
-        corner(indicator, UDim.new(1, 0))
+        tab.TabButton = tabButton
 
         tab.TabButton = tabButton
         tab.TabText = tabText
         tab.Icon = icon
-        tab.Indicator = indicator
-        tab.Glass = glass
         tab.Page, tab.List = buildPage(tab)
 
         table.insert(window.Tabs, tab)
 
         tabButton.MouseEnter:Connect(function()
             if currentTab ~= tab then
-                tween(tabButton, 0.15, {BackgroundColor3 = theme.ElementHover, BackgroundTransparency = 0.04})
+                tween(tabText, 0.15, {TextColor3 = theme.Text})
                 if icon then tween(icon, 0.15, {ImageColor3 = theme.Text}) end
             end
         end)
         tabButton.MouseLeave:Connect(function()
             if currentTab ~= tab then
-                tween(tabButton, 0.15, {BackgroundColor3 = theme.Element, BackgroundTransparency = 0.2})
+                tween(tabText, 0.15, {TextColor3 = theme.Muted})
                 if icon then tween(icon, 0.15, {ImageColor3 = theme.Muted}) end
             end
         end)
@@ -798,14 +907,6 @@ function DarkyX:CreateWindow(config)
                 LayoutOrder = tab.Order,
                 ZIndex = 9,
             }, tab.Page)
-            local accent = new("Frame", {
-                BackgroundColor3 = theme.Accent,
-                BackgroundTransparency = 0.08,
-                Position = UDim2.fromOffset(0, 4),
-                Size = UDim2.fromOffset(3, hasDescription and 38 or 24),
-                ZIndex = 10,
-            }, holder)
-            corner(accent, UDim.new(1, 0))
             local sectionIcon = makeIcon(holder, sectionConfig.icon, 15, theme.Accent2, 11)
             local left = 11
             if sectionIcon then sectionIcon.Position = UDim2.fromOffset(11, 5); left = 32 end
@@ -834,14 +935,6 @@ function DarkyX:CreateWindow(config)
                     ZIndex = 10,
                 }, holder)
             end
-            local line = new("Frame", {
-                BackgroundColor3 = theme.Border,
-                BackgroundTransparency = 0.25,
-                AnchorPoint = Vector2.new(1, 0.5),
-                Position = UDim2.new(1, 0, 0.5, hasDescription and 5 or 3),
-                Size = UDim2.fromOffset(70, 1),
-                ZIndex = 10,
-            }, holder)
             return holder
         end
 
@@ -875,6 +968,7 @@ function DarkyX:CreateWindow(config)
                 if actionIcon then iconPop(actionIcon) end
                 if typeof(element.callback) == "function" then task.spawn(element.callback) end
             end)
+            registerSearchItem(tab, button, element.name or "Button", element.description)
             return button
         end
 
@@ -943,6 +1037,8 @@ function DarkyX:CreateWindow(config)
             function api:Get()
                 return state
             end
+            if element.flag then window._StateEntries[tostring(element.flag)] = api end
+            registerSearchItem(tab, button, element.name or "Toggle", element.description)
             return api
         end
 
@@ -963,18 +1059,19 @@ function DarkyX:CreateWindow(config)
                 BackgroundTransparency = 1,
                 Size = UDim2.new(1, 0, 0, closedHeight),
                 LayoutOrder = tab.Order,
-                ZIndex = 10,
+                ClipsDescendants = true,
+                ZIndex = 12,
             }, tab.Page)
             local button = new("TextButton", {
                 AutoButtonColor = false,
                 BackgroundColor3 = theme.Element,
                 Text = "",
-                Size = UDim2.fromScale(1, 1),
-                ZIndex = 10,
+                Size = UDim2.new(1, 0, 0, closedHeight),
+                ZIndex = 13,
             }, holder)
             corner(button, UDim.new(0, 11))
-            stroke(button, theme.Border, 0.35, 1)
-            setTextPair(button, element.name or "Dropdown", element.description, theme, 7, -140, 11)
+            stroke(button, theme.Border, 0.38, 1)
+            setTextPair(button, element.name or "Dropdown", element.description, theme, 7, -140, 14)
 
             local valueLabel = new("TextLabel", {
                 BackgroundTransparency = 1,
@@ -984,17 +1081,72 @@ function DarkyX:CreateWindow(config)
                 TextSize = 10,
                 TextTruncate = Enum.TextTruncate.AtEnd,
                 TextXAlignment = Enum.TextXAlignment.Right,
-                Position = UDim2.new(0.44, 0, hasDescription and 0 or 0.5, hasDescription and 42 or -8),
-                Size = UDim2.new(0.5, -30, 0, 18),
-                ZIndex = 12,
+                Position = UDim2.new(0.42, 0, hasDescription and 0 or 0.5, hasDescription and 42 or -8),
+                Size = UDim2.new(0.52, -30, 0, 18),
+                ZIndex = 15,
             }, button)
-            local arrow = makeIcon(button, "chevron-down", 16, theme.Muted, 13)
+            local arrow = makeIcon(button, "chevron-down", 16, theme.Muted, 16)
             if arrow then arrow.AnchorPoint = Vector2.new(0.5, 0.5); arrow.Position = UDim2.new(1, -16, 0.5, 0) end
 
             local open = false
-            local popup
-            local popupConnection
             local searchQuery = ""
+            local expandedHeight = closedHeight
+            local api = {}
+
+            local searchShell = new("Frame", {
+                BackgroundColor3 = theme.Panel2,
+                BackgroundTransparency = 0.02,
+                Position = UDim2.fromOffset(8, closedHeight - 10),
+                Size = UDim2.new(1, -16, 0, 34),
+                Visible = false,
+                ZIndex = 16,
+            }, holder)
+            corner(searchShell, UDim.new(0, 9))
+            stroke(searchShell, theme.Border2, 0.25, 1)
+            local searchIcon = makeIcon(searchShell, "search", 14, theme.Muted, 18)
+            if searchIcon then searchIcon.Position = UDim2.fromOffset(10, 10) end
+            local search = new("TextBox", {
+                BackgroundTransparency = 1,
+                ClearTextOnFocus = false,
+                PlaceholderText = "Search options...",
+                PlaceholderColor3 = theme.Muted,
+                Text = "",
+                TextColor3 = theme.Text,
+                Font = Enum.Font.Gotham,
+                TextSize = 10,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                Position = UDim2.fromOffset(31, 0),
+                Size = UDim2.new(1, -67, 1, 0),
+                ZIndex = 18,
+            }, searchShell)
+            local searchClose = new("TextButton", {
+                AutoButtonColor = false,
+                BackgroundColor3 = theme.Danger,
+                BackgroundTransparency = 0.05,
+                Text = "",
+                AnchorPoint = Vector2.new(1, 0.5),
+                Position = UDim2.new(1, -5, 0.5, 0),
+                Size = UDim2.fromOffset(24, 24),
+                ZIndex = 19,
+            }, searchShell)
+            corner(searchClose, UDim.new(0, 7))
+            local searchCloseIcon = makeIcon(searchClose, "x", 12, theme.White, 20)
+            if searchCloseIcon then searchCloseIcon.AnchorPoint = Vector2.new(0.5, 0.5); searchCloseIcon.Position = UDim2.fromScale(0.5, 0.5) end
+
+            local list = new("ScrollingFrame", {
+                BackgroundTransparency = 1,
+                BorderSizePixel = 0,
+                Position = UDim2.fromOffset(8, closedHeight + 31),
+                Size = UDim2.new(1, -16, 0, 0),
+                CanvasSize = UDim2.new(),
+                AutomaticCanvasSize = Enum.AutomaticSize.Y,
+                ScrollBarThickness = 3,
+                ScrollBarImageColor3 = theme.Accent,
+                ScrollingDirection = Enum.ScrollingDirection.Y,
+                ZIndex = 17,
+                Visible = false,
+            }, holder)
+            new("UIListLayout", {Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder}, list)
 
             local function getSelectedText()
                 local chosen = {}
@@ -1005,271 +1157,200 @@ function DarkyX:CreateWindow(config)
                 if #chosen <= 2 then return table.concat(chosen, ", ") end
                 return tostring(#chosen) .. " selected"
             end
+
             local function updateValue()
                 valueLabel.Text = getSelectedText()
             end
             updateValue()
 
-            local api = {}
-
-            local function positionPopup()
-                if not popup or not popup.Panel or not popup.Parent then return end
-                local absolute = button.AbsolutePosition
-                local size = button.AbsoluteSize
-                local panel = popup.Panel
-                local panelHeight = panel.AbsoluteSize.Y
-                local viewport = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(1920, 1080)
-                local x = absolute.X
-                local y = absolute.Y + size.Y + 6
-                if y + panelHeight > viewport.Y - 8 then
-                    y = math.max(8, absolute.Y - panelHeight - 6)
-                end
-                if x + size.X > viewport.X - 8 then
-                    x = math.max(8, viewport.X - size.X - 8)
-                end
-                panel.Position = UDim2.fromOffset(x, y)
-                panel.Size = UDim2.fromOffset(size.X, panelHeight)
-            end
-
-            local function closePopup()
-                if not open then return end
-                open = false
-                if arrow then tween(arrow, 0.2, {Rotation = 0, ImageColor3 = theme.Muted}) end
-                if popupConnection then popupConnection:Disconnect(); popupConnection = nil end
-                if popup and popup.Panel then
-                    local panel = popup.Panel
-                    tween(panel, 0.2, {Size = UDim2.fromOffset(panel.AbsoluteSize.X, 1), BackgroundTransparency = 1}, Enum.EasingStyle.Quint)
-                    task.delay(0.21, function()
-                        if popup and popup.Parent then popup:Destroy() end
-                        popup = nil
-                    end)
-                else
-                    popup = nil
-                end
-            end
-
-            local function callbackValue()
-                if not element.callback then return end
-                if element.multiSelect then
-                    local values = {}
-                    for _, option in ipairs(options) do if selected[tostring(option)] then table.insert(values, option) end end
-                    task.spawn(element.callback, values)
-                else
-                    local value
-                    for _, option in ipairs(options) do if selected[tostring(option)] then value = option; break end end
-                    task.spawn(element.callback, value)
-                end
-            end
-
-            local function choose(option)
-                local key = tostring(option)
-                if element.multiSelect then
-                    selected[key] = not selected[key]
-                else
-                    table.clear(selected)
-                    selected[key] = true
-                    closePopup()
-                end
-                updateValue()
-                callbackValue()
-                if popup and popup.RefreshRows then popup.RefreshRows() end
-            end
-
-            local function refreshRows(list, query)
-                for _, child in ipairs(list:GetChildren()) do
-                    if child:IsA("GuiButton") or child:IsA("TextLabel") then child:Destroy() end
-                end
-                local count = 0
+            local function visibleOptions(query)
+                local result = {}
                 for _, option in ipairs(options) do
                     local text = tostring(option)
                     if query == "" or string.find(string.lower(text), string.lower(query), 1, true) then
-                        count += 1
+                        table.insert(result, option)
+                    end
+                end
+                return result
+            end
+
+            local function refreshRows(query)
+                for _, child in ipairs(list:GetChildren()) do
+                    if child:IsA("GuiButton") or child:IsA("TextLabel") then child:Destroy() end
+                end
+                local matches = visibleOptions(query or "")
+                if #matches == 0 then
+                    new("TextLabel", {
+                        BackgroundTransparency = 1,
+                        Text = "No matching options",
+                        TextColor3 = theme.Muted,
+                        Font = Enum.Font.Gotham,
+                        TextSize = 10,
+                        Size = UDim2.new(1, 0, 0, 34),
+                        ZIndex = 18,
+                    }, list)
+                else
+                    for index, option in ipairs(matches) do
+                        local text = tostring(option)
                         local row = new("TextButton", {
                             AutoButtonColor = false,
                             BackgroundColor3 = selected[text] and theme.AccentDark or theme.Element,
+                            BackgroundTransparency = 0.03,
                             Text = "",
-                            Size = UDim2.new(1, -2, 0, 36),
-                            LayoutOrder = count,
-                            ZIndex = 115,
+                            Size = UDim2.new(1, -2, 0, 34),
+                            LayoutOrder = index,
+                            ZIndex = 18,
                         }, list)
-                        corner(row, UDim.new(0, 9))
-                        local rowIcon = makeIcon(row, selected[text] and "check" or (element.optionIcon or "circle"), 15, selected[text] and theme.Accent2 or theme.Faint, 117)
+                        corner(row, UDim.new(0, 8))
+                        local rowIcon = makeIcon(row, selected[text] and "check" or (element.optionIcon or "circle"), 14, selected[text] and theme.Accent2 or theme.Faint, 20)
                         if rowIcon then rowIcon.AnchorPoint = Vector2.new(0, 0.5); rowIcon.Position = UDim2.new(0, 10, 0.5, 0) end
                         new("TextLabel", {
                             BackgroundTransparency = 1,
                             Text = text,
                             TextColor3 = selected[text] and theme.Text or theme.Muted,
                             Font = Enum.Font.GothamMedium,
-                            TextSize = 11,
+                            TextSize = 10,
                             TextTruncate = Enum.TextTruncate.AtEnd,
                             TextXAlignment = Enum.TextXAlignment.Left,
                             Position = UDim2.fromOffset(32, 0),
                             Size = UDim2.new(1, -42, 1, 0),
-                            ZIndex = 117,
+                            ZIndex = 20,
                         }, row)
                         row.MouseEnter:Connect(function() tween(row, 0.12, {BackgroundColor3 = selected[text] and theme.AccentDark or theme.ElementHover}) end)
                         row.MouseLeave:Connect(function() tween(row, 0.12, {BackgroundColor3 = selected[text] and theme.AccentDark or theme.Element}) end)
-                        row.MouseButton1Click:Connect(function() choose(option) end)
+                        row.MouseButton1Click:Connect(function()
+                            if element.multiSelect then
+                                selected[text] = not selected[text]
+                            else
+                                table.clear(selected)
+                                selected[text] = true
+                            end
+                            updateValue()
+                            if typeof(element.callback) == "function" then
+                                if element.multiSelect then
+                                    local values = {}
+                                    for _, item in ipairs(options) do if selected[tostring(item)] then table.insert(values, item) end end
+                                    task.spawn(element.callback, values)
+                                else
+                                    task.spawn(element.callback, option)
+                                end
+                            end
+                            refreshRows(search.Text)
+                            if not element.multiSelect then
+                                api:Close()
+                            end
+                        end)
                     end
                 end
-                if count == 0 then
-                    new("TextLabel", {
-                        BackgroundTransparency = 1,
-                        Text = "No matching options",
-                        TextColor3 = theme.Muted,
-                        Font = Enum.Font.Gotham,
-                        TextSize = 11,
-                        Size = UDim2.new(1, 0, 0, 38),
-                        ZIndex = 116,
-                    }, list)
+            end
+
+            local function recomputeHeight()
+                local count = #visibleOptions(searchQuery)
+                local listHeight = math.clamp(math.max(1, math.min(count, 6)) * 38, 38, 228)
+                expandedHeight = closedHeight + 48 + listHeight + 8
+                if open then
+                    tween(holder, 0.28, {Size = UDim2.new(1, 0, 0, expandedHeight)}, Enum.EasingStyle.Quint)
+                    tween(list, 0.28, {Size = UDim2.new(1, -16, 0, listHeight)}, Enum.EasingStyle.Quint)
+                else
+                    list.Size = UDim2.new(1, -16, 0, listHeight)
                 end
             end
 
-            local function openPopup()
-                if open then closePopup(); return end
+            local function openDropdown()
+                if open then
+                    api:Close()
+                    return
+                end
+                if window._ActiveDropdown and window._ActiveDropdown ~= api then
+                    window._ActiveDropdown:Close()
+                end
+                window._ActiveDropdown = api
                 open = true
+                searchQuery = search.Text
+                refreshRows(searchQuery)
+                recomputeHeight()
+                holder.Size = UDim2.new(1, 0, 0, closedHeight)
+                searchShell.Visible = true
+                list.Visible = true
+                searchShell.Position = UDim2.fromOffset(8, closedHeight - 10)
+                list.Position = UDim2.fromOffset(8, closedHeight + 28)
+                tween(holder, 0.3, {Size = UDim2.new(1, 0, 0, expandedHeight)}, Enum.EasingStyle.Quint)
+                tween(searchShell, 0.3, {Position = UDim2.fromOffset(8, closedHeight + 8)}, Enum.EasingStyle.Back)
+                tween(list, 0.3, {Position = UDim2.fromOffset(8, closedHeight + 50)}, Enum.EasingStyle.Quint)
                 if arrow then tween(arrow, 0.2, {Rotation = 180, ImageColor3 = theme.Accent2}) end
+            end
 
-                popup = new("Frame", {
-                    BackgroundTransparency = 1,
-                    Size = UDim2.fromScale(1, 1),
-                    ZIndex = 110,
-                }, screenGui)
-
-                local panel = new("Frame", {
-                    BackgroundColor3 = theme.Panel,
-                    BackgroundTransparency = 0.02,
-                    Position = UDim2.fromOffset(button.AbsolutePosition.X, button.AbsolutePosition.Y + button.AbsoluteSize.Y + 6),
-                    Size = UDim2.fromOffset(button.AbsoluteSize.X, 4),
-                    ClipsDescendants = true,
-                    ZIndex = 111,
-                }, popup)
-                corner(panel, UDim.new(0, 13))
-                stroke(panel, theme.Border2, 0.12, 1)
-                local panelGradient = gradient(panel, {
-                    ColorSequenceKeypoint.new(0, theme.Panel2),
-                    ColorSequenceKeypoint.new(0.55, theme.Panel),
-                    ColorSequenceKeypoint.new(1, theme.Background),
-                }, 90)
-
-                local searchShell = new("Frame", {
-                    BackgroundColor3 = theme.Element,
-                    BackgroundTransparency = 0.02,
-                    Position = UDim2.fromOffset(7, -38),
-                    Size = UDim2.new(1, -14, 0, 35),
-                    ZIndex = 114,
-                }, panel)
-                corner(searchShell, UDim.new(0, 10))
-                stroke(searchShell, theme.Border2, 0.2, 1)
-                local searchIcon = makeIcon(searchShell, "search", 14, theme.Muted, 117)
-                if searchIcon then searchIcon.AnchorPoint = Vector2.new(0, 0.5); searchIcon.Position = UDim2.new(0, 11, 0.5, 0) end
-                local search = new("TextBox", {
-                    BackgroundTransparency = 1,
-                    ClearTextOnFocus = false,
-                    PlaceholderText = "Search options...",
-                    PlaceholderColor3 = theme.Muted,
-                    Text = "",
-                    TextColor3 = theme.Text,
-                    Font = Enum.Font.Gotham,
-                    TextSize = 11,
-                    TextXAlignment = Enum.TextXAlignment.Left,
-                    Position = UDim2.fromOffset(33, 0),
-                    Size = UDim2.new(1, -72, 1, 0),
-                    ZIndex = 117,
-                }, searchShell)
-                local searchClose = new("TextButton", {
-                    AutoButtonColor = false,
-                    BackgroundColor3 = theme.Danger,
-                    BackgroundTransparency = 0.06,
-                    Text = "",
-                    AnchorPoint = Vector2.new(1, 0.5),
-                    Position = UDim2.new(1, -6, 0.5, 0),
-                    Size = UDim2.fromOffset(26, 26),
-                    ZIndex = 118,
-                }, searchShell)
-                corner(searchClose, UDim.new(0, 8))
-                local closeIcon = makeIcon(searchClose, "x", 13, Color3.new(1,1,1), 119)
-                if closeIcon then closeIcon.AnchorPoint = Vector2.new(0.5, 0.5); closeIcon.Position = UDim2.fromScale(0.5, 0.5) end
-
-                local list = new("ScrollingFrame", {
-                    BackgroundTransparency = 1,
-                    BorderSizePixel = 0,
-                    Position = UDim2.fromOffset(7, 7),
-                    Size = UDim2.new(1, -14, 1, -14),
-                    CanvasSize = UDim2.new(),
-                    AutomaticCanvasSize = Enum.AutomaticSize.Y,
-                    ScrollBarThickness = 3,
-                    ScrollBarImageColor3 = theme.Accent,
-                    ScrollingDirection = Enum.ScrollingDirection.Y,
-                    ZIndex = 113,
-                }, panel)
-                new("UIPadding", {PaddingTop = UDim.new(0, 35), PaddingBottom = UDim.new(0, 4)}, list)
-                local listLayout = new("UIListLayout", {Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder}, list)
-                autoCanvas(list, listLayout)
-
-                popup.Panel = panel
-                popup.RefreshRows = function() refreshRows(list, search.Text) end
-
-                search:GetPropertyChangedSignal("Text"):Connect(function()
-                    refreshRows(list, search.Text)
-                end)
-                searchClose.MouseButton1Click:Connect(closePopup)
-                searchClose.MouseEnter:Connect(function() tween(searchClose, 0.12, {BackgroundColor3 = Color3.fromRGB(255, 98, 112)}) end)
-                searchClose.MouseLeave:Connect(function() tween(searchClose, 0.12, {BackgroundColor3 = theme.Danger}) end)
-
-                refreshRows(list, "")
-                local visibleCount = math.min(math.max(#options, 1), 6)
-                local desiredHeight = 51 + visibleCount * 38
-                desiredHeight = math.clamp(desiredHeight, 105, 285)
-                positionPopup()
-                panel.Size = UDim2.fromOffset(button.AbsoluteSize.X, 4)
-                tween(panel, 0.28, {Size = UDim2.fromOffset(button.AbsoluteSize.X, desiredHeight)}, Enum.EasingStyle.Quint)
-                tween(searchShell, 0.28, {Position = UDim2.fromOffset(7, 7)}, Enum.EasingStyle.Back)
-                popupConnection = RunService.RenderStepped:Connect(function()
-                    if not open or not popup or not popup.Parent then return end
-                    positionPopup()
-                end)
-                task.defer(function()
-                    if search.Parent then search:CaptureFocus() end
+            function api:Close()
+                if not open then return end
+                open = false
+                if window._ActiveDropdown == api then window._ActiveDropdown = nil end
+                if arrow then tween(arrow, 0.2, {Rotation = 0, ImageColor3 = theme.Muted}) end
+                tween(searchShell, 0.18, {Position = UDim2.fromOffset(8, closedHeight - 10)}, Enum.EasingStyle.Quint)
+                tween(list, 0.18, {Position = UDim2.fromOffset(8, closedHeight + 28)}, Enum.EasingStyle.Quint)
+                tween(holder, 0.24, {Size = UDim2.new(1, 0, 0, closedHeight)}, Enum.EasingStyle.Quint)
+                task.delay(0.23, function()
+                    if not open and searchShell.Parent then
+                        searchShell.Visible = false
+                        list.Visible = false
+                    end
                 end)
             end
 
+            search:GetPropertyChangedSignal("Text"):Connect(function()
+                if not open then return end
+                searchQuery = search.Text
+                refreshRows(searchQuery)
+                recomputeHeight()
+            end)
+            searchClose.MouseButton1Click:Connect(function() api:Close() end)
             button.MouseEnter:Connect(function() tween(button, 0.15, {BackgroundColor3 = theme.ElementHover}) end)
             button.MouseLeave:Connect(function() if not open then tween(button, 0.15, {BackgroundColor3 = theme.Element}) end end)
-            button.MouseButton1Click:Connect(openPopup)
+            button.MouseButton1Click:Connect(openDropdown)
 
             function api:Refresh(newOptions)
                 options = table.clone(newOptions or {})
                 for key in pairs(selected) do
                     local found = false
-                    for _, option in ipairs(options) do if tostring(option) == key then found = true break end end
+                    for _, option in ipairs(options) do
+                        if tostring(option) == key then found = true break end
+                    end
                     if not found then selected[key] = nil end
                 end
                 updateValue()
-                if popup and popup.RefreshRows then popup.RefreshRows() end
+                if open then refreshRows(search.Text); recomputeHeight() end
             end
             function api:Set(value, fire)
                 table.clear(selected)
                 if element.multiSelect then
                     for _, item in ipairs(value or {}) do selected[tostring(item)] = true end
-                else
-                    if value ~= nil then selected[tostring(value)] = true end
+                elseif value ~= nil then
+                    selected[tostring(value)] = true
                 end
                 updateValue()
-                if fire ~= false then callbackValue() end
+                if fire ~= false and typeof(element.callback) == "function" then
+                    if element.multiSelect then
+                        local values = {}
+                        for _, item in ipairs(options) do if selected[tostring(item)] then table.insert(values, item) end end
+                        task.spawn(element.callback, values)
+                    else
+                        local valueOut
+                        for _, item in ipairs(options) do if selected[tostring(item)] then valueOut = item; break end end
+                        task.spawn(element.callback, valueOut)
+                    end
+                end
+                if open then refreshRows(search.Text); recomputeHeight() end
             end
             function api:Get()
                 if element.multiSelect then
                     local values = {}
-                    for _, option in ipairs(options) do if selected[tostring(option)] then table.insert(values, option) end end
+                    for _, item in ipairs(options) do if selected[tostring(item)] then table.insert(values, item) end end
                     return values
                 end
-                for _, option in ipairs(options) do if selected[tostring(option)] then return option end end
+                for _, item in ipairs(options) do if selected[tostring(item)] then return item end end
                 return nil
             end
-            function api:Close()
-                closePopup()
-            end
+            if element.flag then window._StateEntries[tostring(element.flag)] = api end
+            registerSearchItem(tab, holder, element.name or "Dropdown", element.description)
             table.insert(dropdowns, api)
             return api
         end
@@ -1340,6 +1421,8 @@ function DarkyX:CreateWindow(config)
             local api = {}
             function api:Set(valueValue, fire) apply(tonumber(valueValue) or value, fire ~= false) end
             function api:Get() return value end
+            if element.flag then window._StateEntries[tostring(element.flag)] = api end
+            registerSearchItem(tab, holder, element.name or "Slider", element.description)
             return api
         end
 
@@ -1385,13 +1468,89 @@ function DarkyX:CreateWindow(config)
                 if typeof(element.callback) == "function" then task.spawn(element.callback, box.Text) end
             end)
             local api = {}
-            function api:Set(value) box.Text = tostring(value); committed = box.Text end
+            function api:Set(value, fire)
+                box.Text = tostring(value)
+                committed = box.Text
+                if fire and typeof(element.callback) == "function" then task.spawn(element.callback, box.Text) end
+            end
             function api:Get() return box.Text end
+            if element.flag then window._StateEntries[tostring(element.flag)] = api end
+            registerSearchItem(tab, holder, element.name or "Input", element.description)
             return api
         end
 
         return tab
     end
+
+    local keybindCapturing = false
+    keybindButton.MouseButton1Click:Connect(function()
+        keybindCapturing = true
+        keybindButton.Text = "Press a key..."
+        keybindButton.TextColor3 = theme.Accent2
+    end)
+
+    UserInputService.InputBegan:Connect(function(input, processed)
+        if keybindCapturing then
+            if input.UserInputType == Enum.UserInputType.Keyboard then
+                window._Keybind = input.KeyCode
+                keybindButton.Text = input.KeyCode.Name
+                keybindButton.TextColor3 = theme.Text
+                keybindCapturing = false
+            end
+            return
+        end
+        if processed then return end
+        if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == window._Keybind then
+            window:Toggle()
+        end
+    end)
+
+    local saveFile = "DarkyX_Save.json"
+    local function setSettingsStatus(text, color)
+        settingsStatus.Text = text
+        settingsStatus.TextColor3 = color or theme.Success
+        task.delay(2, function()
+            if settingsStatus.Parent then settingsStatus.Text = "" end
+        end)
+    end
+
+    saveButton.MouseButton1Click:Connect(function()
+        if type(writefile) ~= "function" then
+            setSettingsStatus("writefile unavailable", theme.Danger)
+            return
+        end
+        local HttpService = game:GetService("HttpService")
+        local data = {}
+        for flag, apiEntry in pairs(window._StateEntries) do
+            local ok, value = pcall(function() return apiEntry:Get() end)
+            if ok then data[flag] = value end
+        end
+        local ok = pcall(function() writefile(saveFile, HttpService:JSONEncode(data)) end)
+        setSettingsStatus(ok and "Saved" or "Save failed", ok and theme.Success or theme.Danger)
+    end)
+
+    loadButton.MouseButton1Click:Connect(function()
+        if type(readfile) ~= "function" then
+            setSettingsStatus("readfile unavailable", theme.Danger)
+            return
+        end
+        local HttpService = game:GetService("HttpService")
+        local okRead, raw = pcall(function() return readfile(saveFile) end)
+        if not okRead then
+            setSettingsStatus("No save found", theme.Danger)
+            return
+        end
+        local okDecode, data = pcall(function() return HttpService:JSONDecode(raw) end)
+        if not okDecode or type(data) ~= "table" then
+            setSettingsStatus("Invalid save", theme.Danger)
+            return
+        end
+        for flag, value in pairs(data) do
+            local apiEntry = window._StateEntries[tostring(flag)]
+            if apiEntry then pcall(function() apiEntry:Set(value, true) end) end
+        end
+        setSettingsStatus("Loaded")
+    end)
 
     function window:Toggle()
         setVisible(not window.Visible)
@@ -1404,7 +1563,7 @@ function DarkyX:CreateWindow(config)
     function window:Destroy()
         if window.Destroyed then return end
         window.Destroyed = true
-        if loading and loading.Parent then loading:Destroy() end
+        if loaderTitle and loaderTitle.Parent then loaderTitle:Destroy() end
         if screenGui and screenGui.Parent then
             tween(mainScale, 0.22, {Scale = 0.92}, Enum.EasingStyle.Quint)
             task.delay(0.22, function()
@@ -1413,16 +1572,13 @@ function DarkyX:CreateWindow(config)
         end
     end
 
-    task.delay(0.82, function()
-        if not loading.Parent or window.Destroyed then return end
-        tween(bigScale, 0.24, {Scale = 1.15}, Enum.EasingStyle.Quint)
-        tween(glowText, 0.2, {TextTransparency = 1})
-        tween(bigText, 0.2, {TextTransparency = 1, TextStrokeTransparency = 1})
-        tween(loadingLabel, 0.16, {TextTransparency = 1})
-        tween(loading, 0.3, {BackgroundTransparency = 1})
-        tween(mainScale, 0.38, {Scale = 1}, Enum.EasingStyle.Back)
-        task.delay(0.3, function()
-            if loading and loading.Parent then loading:Destroy() end
+    task.delay(0.72, function()
+        if window.Destroyed or not loaderTitle.Parent then return end
+        tween(loaderScale, 0.24, {Scale = 1.12}, Enum.EasingStyle.Quint)
+        tween(loaderTitle, 0.22, {TextTransparency = 1})
+        tween(mainScale, 0.35, {Scale = 1}, Enum.EasingStyle.Back)
+        task.delay(0.25, function()
+            if loaderTitle and loaderTitle.Parent then loaderTitle:Destroy() end
         end)
     end)
 
