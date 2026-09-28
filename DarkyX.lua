@@ -303,6 +303,8 @@ function DarkyX:CreateWindow(config)
     local sidebarLayout = config.sidebarLayout == true
     local windowWidth = tonumber(config.width) or 550
     local windowHeight = tonumber(config.height) or 340
+    local elementBox = Color3.fromRGB(42, 43, 48)
+    local elementBoxHover = Color3.fromRGB(52, 53, 59)
     local guiName = "DarkyX_" .. tostring(math.random(10000, 99999))
 
     local guiParent = CoreGui
@@ -465,22 +467,9 @@ function DarkyX:CreateWindow(config)
         TextSize = 11,
         TextXAlignment = Enum.TextXAlignment.Left,
         Position = UDim2.fromOffset(33, 0),
-        Size = UDim2.new(1, -72, 1, 0),
+        Size = UDim2.new(1, -44, 1, 0),
         ZIndex = 42,
     }, searchPanel)
-    local searchClose = new("TextButton", {
-        AutoButtonColor = false,
-        BackgroundColor3 = theme.Danger,
-        BackgroundTransparency = 0.06,
-        Text = "",
-        AnchorPoint = Vector2.new(1, 0.5),
-        Position = UDim2.new(1, -6, 0.5, 0),
-        Size = UDim2.fromOffset(25, 25),
-        ZIndex = 43,
-    }, searchPanel)
-    corner(searchClose, UDim.new(0, 8))
-    local searchCloseIcon = makeIcon(searchClose, "x", 13, theme.White, 44)
-    if searchCloseIcon then searchCloseIcon.AnchorPoint = Vector2.new(0.5, 0.5); searchCloseIcon.Position = UDim2.fromScale(0.5, 0.5) end
 
     local currentTab
     local closeSearchPanel
@@ -722,7 +711,6 @@ function DarkyX:CreateWindow(config)
             if searchBox.Parent then searchBox:CaptureFocus() end
         end)
     end)
-    searchClose.MouseButton1Click:Connect(closeSearchPanel)
     settingsButton.MouseButton1Click:Connect(function()
         if settingsPageOpen then
             closeSettingsPage()
@@ -847,6 +835,39 @@ function DarkyX:CreateWindow(config)
         floating.Position = UDim2.fromOffset(x, y)
     end
 
+    local meterWidth = tonumber(config.meterWidth) or 220
+    local meterHeight = tonumber(config.meterHeight) or 7
+    local meterValue = math.clamp(tonumber(config.meterValue) or 0.72, 0, 1)
+    local meter = new("Frame", {
+        Name = "FloatingMeter",
+        BackgroundColor3 = Color3.fromRGB(28, 29, 33),
+        BackgroundTransparency = 0.3,
+        Size = UDim2.fromOffset(meterWidth, meterHeight),
+        Position = UDim2.fromOffset(0, 0),
+        ZIndex = 118,
+        Visible = false,
+    }, screenGui)
+    corner(meter, UDim.new(1, 0))
+    stroke(meter, Color3.fromRGB(92, 94, 101), 0.65, 1)
+    local meterFill = new("Frame", {
+        BackgroundColor3 = theme.Accent,
+        BackgroundTransparency = 0.03,
+        Size = UDim2.new(meterValue, 0, 1, 0),
+        ZIndex = 119,
+    }, meter)
+    corner(meterFill, UDim.new(1, 0))
+
+    local function placeFloatingMeterBelow()
+        local mainPos = main.AbsolutePosition
+        local mainSize = main.AbsoluteSize
+        local viewport = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(1920, 1080)
+        local x = mainPos.X + (mainSize.X - meterWidth) * 0.5
+        local y = mainPos.Y + mainSize.Y + 8
+        x = math.clamp(x, 8, math.max(8, viewport.X - meterWidth - 8))
+        y = math.clamp(y, 8, math.max(8, viewport.Y - meterHeight - 8))
+        meter.Position = UDim2.fromOffset(x, y)
+    end
+
     makeDrag(floating, floating, function()
         if window.Visible then return end
         window:SetVisible(true)
@@ -861,14 +882,27 @@ function DarkyX:CreateWindow(config)
     end)
 
     local mainScale = main:FindFirstChildOfClass("UIScale")
+    main:GetPropertyChangedSignal("AbsolutePosition"):Connect(function()
+        if main.Visible then
+            placeFloatingMeterBelow()
+        end
+    end)
+    main:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+        if main.Visible then
+            placeFloatingMeterBelow()
+        end
+    end)
     local function setVisible(visible)
         window.Visible = visible
         if visible then
             main.Visible = true
             floating.Visible = false
+            meter.Visible = true
+            placeFloatingMeterBelow()
             mainScale.Scale = 0.96
             tween(mainScale, 0.3, {Scale = 1}, Enum.EasingStyle.Back)
         else
+            meter.Visible = false
             tween(mainScale, 0.2, {Scale = 0.95}, Enum.EasingStyle.Quint)
             task.delay(0.19, function()
                 if not window.Visible and main.Parent then main.Visible = false end
@@ -1117,7 +1151,7 @@ function DarkyX:CreateWindow(config)
             local height = hasDescription and 64 or 48
             local button = new("TextButton", {
                 AutoButtonColor = false,
-                BackgroundColor3 = theme.Element,
+                BackgroundColor3 = elementBox,
                 Text = "",
                 Size = UDim2.new(1, 0, 0, height),
                 LayoutOrder = tab.Order,
@@ -1129,11 +1163,11 @@ function DarkyX:CreateWindow(config)
             local actionIcon = makeIcon(button, element.icon or "chevron-right", 16, theme.Muted, 12)
             if actionIcon then actionIcon.AnchorPoint = Vector2.new(1, 0.5); actionIcon.Position = UDim2.new(1, -14, 0.5, 0) end
             button.MouseEnter:Connect(function()
-                tween(button, 0.15, {BackgroundColor3 = theme.ElementHover})
+                tween(button, 0.15, {BackgroundColor3 = elementBoxHover})
                 if actionIcon then tween(actionIcon, 0.15, {ImageColor3 = theme.Accent2, Position = UDim2.new(1, -11, 0.5, 0)}) end
             end)
             button.MouseLeave:Connect(function()
-                tween(button, 0.15, {BackgroundColor3 = theme.Element})
+                tween(button, 0.15, {BackgroundColor3 = elementBox})
                 if actionIcon then tween(actionIcon, 0.15, {ImageColor3 = theme.Muted, Position = UDim2.new(1, -14, 0.5, 0)}) end
             end)
             button.MouseButton1Click:Connect(function()
@@ -1152,7 +1186,7 @@ function DarkyX:CreateWindow(config)
             local height = hasDescription and 64 or 52
             local button = new("TextButton", {
                 AutoButtonColor = false,
-                BackgroundColor3 = theme.Element,
+                BackgroundColor3 = elementBox,
                 Text = "",
                 Size = UDim2.new(1, 0, 0, height),
                 LayoutOrder = tab.Order,
@@ -1198,8 +1232,8 @@ function DarkyX:CreateWindow(config)
                 if fire and typeof(element.callback) == "function" then task.spawn(element.callback, state) end
             end
             apply(state, false)
-            button.MouseEnter:Connect(function() tween(button, 0.15, {BackgroundColor3 = theme.ElementHover}) end)
-            button.MouseLeave:Connect(function() tween(button, 0.15, {BackgroundColor3 = theme.Element}) end)
+            button.MouseEnter:Connect(function() tween(button, 0.15, {BackgroundColor3 = elementBoxHover}) end)
+            button.MouseLeave:Connect(function() tween(button, 0.15, {BackgroundColor3 = elementBox}) end)
             button.MouseButton1Click:Connect(function() apply(not state, true) end)
 
             local api = {}
@@ -1236,7 +1270,7 @@ function DarkyX:CreateWindow(config)
             }, tab.Page)
             local button = new("TextButton", {
                 AutoButtonColor = false,
-                BackgroundColor3 = theme.Element,
+                BackgroundColor3 = elementBox,
                 Text = "",
                 Size = UDim2.new(1, 0, 0, closedHeight),
                 ZIndex = 13,
@@ -1288,22 +1322,9 @@ function DarkyX:CreateWindow(config)
                 TextSize = 10,
                 TextXAlignment = Enum.TextXAlignment.Left,
                 Position = UDim2.fromOffset(31, 0),
-                Size = UDim2.new(1, -67, 1, 0),
+                Size = UDim2.new(1, -43, 1, 0),
                 ZIndex = 18,
             }, searchShell)
-            local searchClose = new("TextButton", {
-                AutoButtonColor = false,
-                BackgroundColor3 = theme.Danger,
-                BackgroundTransparency = 0.05,
-                Text = "",
-                AnchorPoint = Vector2.new(1, 0.5),
-                Position = UDim2.new(1, -5, 0.5, 0),
-                Size = UDim2.fromOffset(24, 24),
-                ZIndex = 19,
-            }, searchShell)
-            corner(searchClose, UDim.new(0, 7))
-            local searchCloseIcon = makeIcon(searchClose, "x", 12, theme.White, 20)
-            if searchCloseIcon then searchCloseIcon.AnchorPoint = Vector2.new(0.5, 0.5); searchCloseIcon.Position = UDim2.fromScale(0.5, 0.5) end
 
             local list = new("ScrollingFrame", {
                 BackgroundTransparency = 1,
@@ -1366,7 +1387,7 @@ function DarkyX:CreateWindow(config)
                         local text = tostring(option)
                         local row = new("TextButton", {
                             AutoButtonColor = false,
-                            BackgroundColor3 = selected[text] and theme.AccentDark or theme.Element,
+                            BackgroundColor3 = selected[text] and theme.AccentDark or elementBox,
                             BackgroundTransparency = 0.03,
                             Text = "",
                             Size = UDim2.new(1, -2, 0, 34),
@@ -1388,8 +1409,8 @@ function DarkyX:CreateWindow(config)
                             Size = UDim2.new(1, -42, 1, 0),
                             ZIndex = 20,
                         }, row)
-                        row.MouseEnter:Connect(function() tween(row, 0.12, {BackgroundColor3 = selected[text] and theme.AccentDark or theme.ElementHover}) end)
-                        row.MouseLeave:Connect(function() tween(row, 0.12, {BackgroundColor3 = selected[text] and theme.AccentDark or theme.Element}) end)
+                        row.MouseEnter:Connect(function() tween(row, 0.12, {BackgroundColor3 = selected[text] and theme.AccentDark or elementBoxHover}) end)
+                        row.MouseLeave:Connect(function() tween(row, 0.12, {BackgroundColor3 = selected[text] and theme.AccentDark or elementBox}) end)
                         row.MouseButton1Click:Connect(function()
                             if element.multiSelect then
                                 selected[text] = not selected[text]
@@ -1474,9 +1495,8 @@ function DarkyX:CreateWindow(config)
                 refreshRows(searchQuery)
                 recomputeHeight()
             end)
-            searchClose.MouseButton1Click:Connect(function() api:Close() end)
-            button.MouseEnter:Connect(function() tween(button, 0.15, {BackgroundColor3 = theme.ElementHover}) end)
-            button.MouseLeave:Connect(function() if not open then tween(button, 0.15, {BackgroundColor3 = theme.Element}) end end)
+            button.MouseEnter:Connect(function() tween(button, 0.15, {BackgroundColor3 = elementBoxHover}) end)
+            button.MouseLeave:Connect(function() if not open then tween(button, 0.15, {BackgroundColor3 = elementBox}) end end)
             button.MouseButton1Click:Connect(openDropdown)
 
             function api:Refresh(newOptions)
@@ -1535,7 +1555,7 @@ function DarkyX:CreateWindow(config)
             if minValue > maxValue then minValue, maxValue = maxValue, minValue end
             local value = math.clamp(tonumber(element.value) or minValue, minValue, maxValue)
             local holder = new("Frame", {
-                BackgroundColor3 = theme.Element,
+                BackgroundColor3 = elementBox,
                 Size = UDim2.new(1, 0, 0, element.description and 78 or 62),
                 LayoutOrder = tab.Order,
                 ZIndex = 9,
@@ -1603,7 +1623,7 @@ function DarkyX:CreateWindow(config)
             tab.Order += 1
             local hasDescription = element.description and tostring(element.description) ~= ""
             local holder = new("Frame", {
-                BackgroundColor3 = theme.Element,
+                BackgroundColor3 = elementBox,
                 Size = UDim2.new(1, 0, 0, hasDescription and 83 or 69),
                 LayoutOrder = tab.Order,
                 ZIndex = 9,
@@ -1724,6 +1744,15 @@ function DarkyX:CreateWindow(config)
         setSettingsStatus("Loaded")
     end)
 
+    function window:SetMeter(value)
+        meterValue = math.clamp(tonumber(value) or 0, 0, 1)
+        tween(meterFill, 0.24, {Size = UDim2.new(meterValue, 0, 1, 0)}, Enum.EasingStyle.Quint)
+    end
+
+    function window:GetMeter()
+        return meterValue
+    end
+
     function window:Toggle()
         setVisible(not window.Visible)
     end
@@ -1747,6 +1776,8 @@ function DarkyX:CreateWindow(config)
     task.delay(0.72, function()
         if window.Destroyed or not loaderTitle.Parent then return end
         main.Visible = true
+        meter.Visible = true
+        placeFloatingMeterBelow()
         mainScale.Scale = 0.94
         tween(loaderScale, 0.24, {Scale = 1.12}, Enum.EasingStyle.Quint)
         tween(loaderTitle, 0.22, {TextTransparency = 1})
