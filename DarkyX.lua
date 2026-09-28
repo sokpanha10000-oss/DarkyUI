@@ -136,7 +136,11 @@ local function gradient(parent, colors, rotation, transparency)
         Color = ColorSequence.new(colors),
     }, parent)
     if transparency then
-        g.Transparency = NumberSequence.new(transparency)
+        if typeof(transparency) == "NumberSequence" then
+            g.Transparency = transparency
+        else
+            g.Transparency = NumberSequence.new(transparency)
+        end
     end
     return g
 end
@@ -350,6 +354,7 @@ function DarkyX:CreateWindow(config)
         Size = UDim2.fromOffset(windowWidth, windowHeight),
         Position = UDim2.new(0.5, -windowWidth / 2, 0.5, -windowHeight / 2),
         ZIndex = 5,
+        Visible = false,
     }, screenGui)
     corner(main, UDim.new(0, 17))
     addScale(main, 0.95)
@@ -367,12 +372,9 @@ function DarkyX:CreateWindow(config)
         Size = UDim2.fromOffset(305, 42),
         ZIndex = 11,
     }, topBar)
-    local titleImage = makeIcon(titleWrap, config.Image or "rbxassetid://0", 28, theme.Text, 12)
-    if titleImage then
-        titleImage.Position = UDim2.fromOffset(0, 6)
-        titleImage.ImageColor3 = theme.Text
-    end
-    local titleLeft = titleImage and 38 or 0
+    -- Window image is intentionally not shown here.
+    -- config.Image is reserved for the FloatingButton logo.
+    local titleLeft = 0
     new("TextLabel", {
         BackgroundTransparency = 1,
         Text = tostring(config.name or "DarkyX Hub"),
@@ -480,100 +482,224 @@ function DarkyX:CreateWindow(config)
     local searchCloseIcon = makeIcon(searchClose, "x", 13, theme.White, 44)
     if searchCloseIcon then searchCloseIcon.AnchorPoint = Vector2.new(0.5, 0.5); searchCloseIcon.Position = UDim2.fromScale(0.5, 0.5) end
 
+    local currentTab
+    local closeSearchPanel
+    local tabShell, tabBar, tabList, pages
+
     local settingsPanel = new("Frame", {
-        BackgroundColor3 = theme.Panel,
-        BackgroundTransparency = 0.01,
-        AnchorPoint = Vector2.new(0, 0),
+        BackgroundColor3 = theme.Background2,
+        BackgroundTransparency = 0,
         Position = UDim2.new(1, 0, 0, 58),
-        Size = UDim2.new(0, 220, 1, -58),
+        Size = UDim2.new(1, 0, 1, -58),
         ClipsDescendants = true,
         Visible = false,
         ZIndex = 50,
     }, main)
     corner(settingsPanel, UDim.new(0, 14))
-    local settingsTitle = new("TextLabel", {
+    local settingsTop = new("Frame", {
+        BackgroundTransparency = 1,
+        Size = UDim2.new(1, 0, 0, 58),
+        ZIndex = 52,
+    }, settingsPanel)
+    new("TextLabel", {
         BackgroundTransparency = 1,
         Text = "Settings",
         TextColor3 = theme.Text,
         Font = Enum.Font.GothamBold,
-        TextSize = 16,
+        TextSize = 17,
         TextXAlignment = Enum.TextXAlignment.Left,
-        Position = UDim2.fromOffset(16, 14),
-        Size = UDim2.new(1, -32, 0, 24),
-        ZIndex = 52,
+        Position = UDim2.fromOffset(16, 10),
+        Size = UDim2.new(1, -70, 0, 24),
+        ZIndex = 53,
+    }, settingsTop)
+    new("TextLabel", {
+        BackgroundTransparency = 1,
+        Text = "Keybind and Save Manager",
+        TextColor3 = theme.Muted,
+        Font = Enum.Font.Gotham,
+        TextSize = 10,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Position = UDim2.fromOffset(16, 32),
+        Size = UDim2.new(1, -70, 0, 16),
+        ZIndex = 53,
+    }, settingsTop)
+    local settingsBack, settingsBackIcon = makeControl("arrow-left", theme.Muted, "Back")
+    settingsBack.Parent = settingsTop
+    settingsBack.AnchorPoint = Vector2.new(1, 0)
+    settingsBack.Position = UDim2.new(1, -12, 0, 11)
+    settingsBack.Visible = true
+    settingsBack.ZIndex = 55
+    if settingsBackIcon then
+        settingsBackIcon.AnchorPoint = Vector2.new(0.5, 0.5)
+        settingsBackIcon.Position = UDim2.fromScale(0.5, 0.5)
+        settingsBackIcon.ZIndex = 57
+    end
+
+    local settingsScroll = new("ScrollingFrame", {
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        Position = UDim2.fromOffset(12, 64),
+        Size = UDim2.new(1, -24, 1, -76),
+        CanvasSize = UDim2.new(),
+        AutomaticCanvasSize = Enum.AutomaticSize.Y,
+        ScrollBarThickness = 3,
+        ScrollBarImageColor3 = theme.Accent,
+        ScrollingDirection = Enum.ScrollingDirection.Y,
+        ZIndex = 51,
     }, settingsPanel)
+    local settingsList = new("UIListLayout", {
+        Padding = UDim.new(0, 10),
+        SortOrder = Enum.SortOrder.LayoutOrder,
+    }, settingsScroll)
+    new("UIPadding", {
+        PaddingBottom = UDim.new(0, 12),
+    }, settingsScroll)
+
+    local keybindSection = new("Frame", {
+        BackgroundColor3 = theme.Element,
+        Size = UDim2.new(1, -4, 0, 112),
+        LayoutOrder = 1,
+        ZIndex = 52,
+    }, settingsScroll)
+    corner(keybindSection, UDim.new(0, 12))
+    stroke(keybindSection, Color3.fromRGB(56, 59, 66), 0.45, 1)
     new("TextLabel", {
         BackgroundTransparency = 1,
         Text = "Keybind",
-        TextColor3 = theme.Muted,
-        Font = Enum.Font.GothamMedium,
-        TextSize = 11,
+        TextColor3 = theme.Text,
+        Font = Enum.Font.GothamBold,
+        TextSize = 12,
         TextXAlignment = Enum.TextXAlignment.Left,
-        Position = UDim2.fromOffset(16, 55),
-        Size = UDim2.new(1, -32, 0, 18),
-        ZIndex = 52,
-    }, settingsPanel)
+        Position = UDim2.fromOffset(13, 10),
+        Size = UDim2.new(1, -26, 0, 18),
+        ZIndex = 54,
+    }, keybindSection)
+    new("TextLabel", {
+        BackgroundTransparency = 1,
+        Text = "Click the key button, then press a keyboard key.",
+        TextColor3 = theme.Muted,
+        Font = Enum.Font.Gotham,
+        TextSize = 10,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Position = UDim2.fromOffset(13, 31),
+        Size = UDim2.new(1, -26, 0, 18),
+        ZIndex = 54,
+    }, keybindSection)
     local keybindButton = new("TextButton", {
         AutoButtonColor = false,
-        BackgroundColor3 = theme.Element,
+        BackgroundColor3 = theme.Panel2,
+        Text = tostring(window._Keybind.Name),
         TextColor3 = theme.Text,
         Font = Enum.Font.GothamMedium,
-        TextSize = 11,
-        Text = tostring(window._Keybind.Name),
-        Position = UDim2.fromOffset(16, 77),
-        Size = UDim2.new(1, -32, 0, 34),
-        ZIndex = 52,
-    }, settingsPanel)
+        TextSize = 10,
+        Size = UDim2.new(1, -26, 0, 32),
+        Position = UDim2.fromOffset(13, 58),
+        ZIndex = 54,
+    }, keybindSection)
     corner(keybindButton, UDim.new(0, 9))
-    stroke(keybindButton, theme.Border2, 0.25, 1)
-    local keybindHint = new("TextLabel", {
-        BackgroundTransparency = 1,
-        Text = "Click, then press a keyboard key",
-        TextColor3 = theme.Faint,
-        Font = Enum.Font.Gotham,
-        TextSize = 9,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        Position = UDim2.fromOffset(16, 114),
-        Size = UDim2.new(1, -32, 0, 16),
+    stroke(keybindButton, Color3.fromRGB(65, 68, 75), 0.35, 1)
+
+    local saveSection = new("Frame", {
+        BackgroundColor3 = theme.Element,
+        Size = UDim2.new(1, -4, 0, 112),
+        LayoutOrder = 2,
         ZIndex = 52,
-    }, settingsPanel)
+    }, settingsScroll)
+    corner(saveSection, UDim.new(0, 12))
+    stroke(saveSection, Color3.fromRGB(56, 59, 66), 0.45, 1)
     new("TextLabel", {
         BackgroundTransparency = 1,
         Text = "Save Manager",
-        TextColor3 = theme.Muted,
-        Font = Enum.Font.GothamMedium,
-        TextSize = 11,
+        TextColor3 = theme.Text,
+        Font = Enum.Font.GothamBold,
+        TextSize = 12,
         TextXAlignment = Enum.TextXAlignment.Left,
-        Position = UDim2.fromOffset(16, 149),
-        Size = UDim2.new(1, -32, 0, 18),
-        ZIndex = 52,
-    }, settingsPanel)
-    local saveRow = new("Frame", {BackgroundTransparency = 1, Position = UDim2.fromOffset(16, 173), Size = UDim2.new(1, -32, 0, 36), ZIndex = 52}, settingsPanel)
-    local saveButton = new("TextButton", {AutoButtonColor = false, BackgroundColor3 = theme.Element, Text = "Save", TextColor3 = theme.Text, Font = Enum.Font.GothamMedium, TextSize = 10, Size = UDim2.new(0.5, -4, 1, 0), ZIndex = 53}, saveRow)
+        Position = UDim2.fromOffset(13, 10),
+        Size = UDim2.new(1, -26, 0, 18),
+        ZIndex = 54,
+    }, saveSection)
+    new("TextLabel", {
+        BackgroundTransparency = 1,
+        Text = "Save or load the current flagged UI values.",
+        TextColor3 = theme.Muted,
+        Font = Enum.Font.Gotham,
+        TextSize = 10,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Position = UDim2.fromOffset(13, 31),
+        Size = UDim2.new(1, -26, 0, 18),
+        ZIndex = 54,
+    }, saveSection)
+    local saveRow = new("Frame", {
+        BackgroundTransparency = 1,
+        Position = UDim2.fromOffset(13, 58),
+        Size = UDim2.new(1, -26, 0, 32),
+        ZIndex = 54,
+    }, saveSection)
+    local saveButton = new("TextButton", {
+        AutoButtonColor = false,
+        BackgroundColor3 = theme.Panel2,
+        Text = "Save",
+        TextColor3 = theme.Text,
+        Font = Enum.Font.GothamMedium,
+        TextSize = 10,
+        Size = UDim2.new(0.5, -4, 1, 0),
+        ZIndex = 55,
+    }, saveRow)
     corner(saveButton, UDim.new(0, 9))
-    local loadButton = new("TextButton", {AutoButtonColor = false, BackgroundColor3 = theme.Element, Text = "Load", TextColor3 = theme.Text, Font = Enum.Font.GothamMedium, TextSize = 10, Position = UDim2.new(0.5, 4, 0, 0), Size = UDim2.new(0.5, -4, 1, 0), ZIndex = 53}, saveRow)
+    stroke(saveButton, Color3.fromRGB(65, 68, 75), 0.35, 1)
+    local loadButton = new("TextButton", {
+        AutoButtonColor = false,
+        BackgroundColor3 = theme.Panel2,
+        Text = "Load",
+        TextColor3 = theme.Text,
+        Font = Enum.Font.GothamMedium,
+        TextSize = 10,
+        Position = UDim2.new(0.5, 4, 0, 0),
+        Size = UDim2.new(0.5, -4, 1, 0),
+        ZIndex = 55,
+    }, saveRow)
     corner(loadButton, UDim.new(0, 9))
-    local settingsStatus = new("TextLabel", {BackgroundTransparency = 1, Text = "", TextColor3 = theme.Success, Font = Enum.Font.Gotham, TextSize = 9, TextXAlignment = Enum.TextXAlignment.Left, Position = UDim2.fromOffset(16, 217), Size = UDim2.new(1, -32, 0, 16), ZIndex = 52}, settingsPanel)
+    stroke(loadButton, Color3.fromRGB(65, 68, 75), 0.35, 1)
+    local settingsStatus = new("TextLabel", {
+        BackgroundTransparency = 1,
+        Text = "",
+        TextColor3 = theme.Success,
+        Font = Enum.Font.Gotham,
+        TextSize = 9,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Position = UDim2.fromOffset(13, 94),
+        Size = UDim2.new(1, -26, 0, 14),
+        ZIndex = 55,
+    }, saveSection)
 
-    local function setPanelOpen(panel, buttonIcon)
-        local opening = not panel.Visible
-        panel.Visible = true
-        local targetX = opening and UDim2.new(1, -220, 0, 58) or UDim2.new(1, 0, 0, 58)
-        if opening then
-            panel.Position = UDim2.new(1, 0, 0, 58)
-            tween(panel, 0.28, {Position = targetX}, Enum.EasingStyle.Quint)
-            if buttonIcon then tween(buttonIcon, 0.18, {ImageColor3 = theme.Accent2}) end
-        else
-            tween(panel, 0.22, {Position = targetX}, Enum.EasingStyle.Quint)
-            task.delay(0.23, function() if panel.Parent and panel.Position.X.Scale == 1 then panel.Visible = false end end)
-            if buttonIcon then tween(buttonIcon, 0.18, {ImageColor3 = theme.Muted}) end
-        end
-        return opening
+    local settingsPageOpen = false
+    local function openSettingsPage()
+        if settingsPageOpen then return end
+        settingsPageOpen = true
+        closeSearchPanel()
+        tabShell.Visible = false
+        pages.Visible = false
+        settingsPanel.Visible = true
+        settingsPanel.Position = UDim2.new(1, 0, 0, 58)
+        tween(settingsPanel, 0.34, {Position = UDim2.new(0, 0, 0, 58)}, Enum.EasingStyle.Quint)
+        if settingsButtonIcon then tween(settingsButtonIcon, 0.18, {ImageColor3 = theme.Accent2}) end
     end
+    local function closeSettingsPage()
+        if not settingsPageOpen then return end
+        settingsPageOpen = false
+        tween(settingsPanel, 0.3, {Position = UDim2.new(1, 0, 0, 58)}, Enum.EasingStyle.Quint)
+        if settingsButtonIcon then tween(settingsButtonIcon, 0.18, {ImageColor3 = theme.Muted}) end
+        task.delay(0.31, function()
+            if settingsPanel.Parent and not settingsPageOpen then
+                settingsPanel.Visible = false
+                tabShell.Visible = true
+                pages.Visible = true
+            end
+        end)
+    end
+    settingsBack.MouseButton1Click:Connect(closeSettingsPage)
 
-    local currentTab
-
-    local function closeSearchPanel()
+    closeSearchPanel = function()
         searchBox.Text = ""
         searchPanel.Visible = false
         if searchButtonIcon then tween(searchButtonIcon, 0.18, {ImageColor3 = theme.Muted}) end
@@ -583,22 +709,26 @@ function DarkyX:CreateWindow(config)
     end
 
     searchButton.MouseButton1Click:Connect(function()
-        searchPanel.Visible = not searchPanel.Visible
-        if searchPanel.Visible then
-            tween(searchButtonIcon, 0.18, {ImageColor3 = theme.Accent2})
-            if settingsPanel.Visible then
-                tween(settingsPanel, 0.2, {Position = UDim2.new(1, 0, 0, 58)}, Enum.EasingStyle.Quint)
-                task.delay(0.21, function() if settingsPanel.Parent then settingsPanel.Visible = false end end)
-            end
-            task.defer(function() if searchBox.Parent then searchBox:CaptureFocus() end end)
-        else
-            closeSearchPanel()
+        if settingsPageOpen then
+            closeSettingsPage()
         end
+        if searchPanel.Visible then
+            closeSearchPanel()
+            return
+        end
+        searchPanel.Visible = true
+        tween(searchButtonIcon, 0.18, {ImageColor3 = theme.Accent2})
+        task.defer(function()
+            if searchBox.Parent then searchBox:CaptureFocus() end
+        end)
     end)
     searchClose.MouseButton1Click:Connect(closeSearchPanel)
     settingsButton.MouseButton1Click:Connect(function()
-        setPanelOpen(settingsPanel, settingsButtonIcon)
-        if searchPanel.Visible then closeSearchPanel() end
+        if settingsPageOpen then
+            closeSettingsPage()
+        else
+            openSettingsPage()
+        end
     end)
 
     local content = new("Frame", {
@@ -607,11 +737,6 @@ function DarkyX:CreateWindow(config)
         Size = UDim2.new(1, -20, 1, -68),
         ZIndex = 7,
     }, main)
-
-    local tabShell
-    local tabBar
-    local tabList
-    local pages
 
     if sidebarLayout then
         tabShell = new("Frame", {
@@ -800,14 +925,31 @@ function DarkyX:CreateWindow(config)
         currentTab = tab
         for _, other in ipairs(window.Tabs) do
             other.Page.Visible = false
-            other.TabButton.BackgroundTransparency = 1
+            if other.SelectionBox then
+                if other.SelectionBox.Visible then
+                    tween(other.SelectionBox, 0.16, {BackgroundTransparency = 1})
+                    if other.SelectionStroke then tween(other.SelectionStroke, 0.16, {Transparency = 1}) end
+                    if other.SelectionLight then tween(other.SelectionLight, 0.16, {BackgroundTransparency = 1}) end
+                    task.delay(0.17, function()
+                        if currentTab ~= other and other.SelectionBox.Parent then other.SelectionBox.Visible = false end
+                    end)
+                end
+            end
             other.TabText.TextColor3 = theme.Muted
             if other.Icon then other.Icon.ImageColor3 = theme.Muted end
         end
         tab.Page.Visible = true
-        tab.TabButton.BackgroundTransparency = 1
+        if tab.SelectionBox then
+            tab.SelectionBox.Visible = true
+            tab.SelectionBox.BackgroundTransparency = 1
+            if tab.SelectionStroke then tab.SelectionStroke.Transparency = 1 end
+            if tab.SelectionLight then tab.SelectionLight.BackgroundTransparency = 1 end
+            tween(tab.SelectionBox, 0.22, {BackgroundTransparency = 0.08}, Enum.EasingStyle.Quint)
+            if tab.SelectionStroke then tween(tab.SelectionStroke, 0.22, {Transparency = 0.2}, Enum.EasingStyle.Quint) end
+            if tab.SelectionLight then tween(tab.SelectionLight, 0.24, {BackgroundTransparency = 0.38}, Enum.EasingStyle.Quint) end
+        end
         tab.TabText.TextColor3 = theme.Text
-        if tab.Icon then tab.Icon.ImageColor3 = theme.Accent2; iconPop(tab.Icon) end
+        if tab.Icon then tab.Icon.ImageColor3 = theme.White; iconPop(tab.Icon) end
         if searchPanel.Visible then
             filterCurrentTabSearch(searchBox.Text)
         else
@@ -856,6 +998,33 @@ function DarkyX:CreateWindow(config)
             LayoutOrder = #window.Tabs + 1,
             ZIndex = 10,
         }, tabBar)
+        local selectedBox = new("Frame", {
+            BackgroundColor3 = theme.Element,
+            BackgroundTransparency = 1,
+            Size = UDim2.new(1, -2, 1, -2),
+            Position = UDim2.fromOffset(1, 1),
+            ClipsDescendants = true,
+            Visible = false,
+            ZIndex = 11,
+        }, tabButton)
+        corner(selectedBox, UDim.new(0, 10))
+        local selectedStroke = stroke(selectedBox, Color3.fromRGB(98, 101, 109), 1, 1)
+        local softLight = new("Frame", {
+            BackgroundColor3 = theme.White,
+            BackgroundTransparency = 0.4,
+            Size = UDim2.new(1, 0, 0.56, 0),
+            Position = UDim2.fromOffset(0, 0),
+            ZIndex = 12,
+        }, selectedBox)
+        corner(softLight, UDim.new(0, 9))
+        gradient(softLight, {
+            ColorSequenceKeypoint.new(0, theme.White),
+            ColorSequenceKeypoint.new(1, theme.White),
+        }, 90, NumberSequence.new({
+            NumberSequenceKeypoint.new(0, 0.2),
+            NumberSequenceKeypoint.new(0.72, 0.62),
+            NumberSequenceKeypoint.new(1, 1),
+        }))
         local icon = makeIcon(tabButton, tab.IconData, 16, theme.Muted, 13)
         if icon then
             icon.Position = sidebarLayout and UDim2.fromOffset(12, 12) or UDim2.fromOffset(10, 9)
@@ -874,6 +1043,9 @@ function DarkyX:CreateWindow(config)
             ZIndex = 14,
         }, tabButton)
         tab.TabButton = tabButton
+        tab.SelectionBox = selectedBox
+        tab.SelectionStroke = selectedStroke
+        tab.SelectionLight = softLight
 
         tab.TabButton = tabButton
         tab.TabText = tabText
@@ -1574,9 +1746,11 @@ function DarkyX:CreateWindow(config)
 
     task.delay(0.72, function()
         if window.Destroyed or not loaderTitle.Parent then return end
+        main.Visible = true
+        mainScale.Scale = 0.94
         tween(loaderScale, 0.24, {Scale = 1.12}, Enum.EasingStyle.Quint)
         tween(loaderTitle, 0.22, {TextTransparency = 1})
-        tween(mainScale, 0.35, {Scale = 1}, Enum.EasingStyle.Back)
+        tween(mainScale, 0.38, {Scale = 1}, Enum.EasingStyle.Back)
         task.delay(0.25, function()
             if loaderTitle and loaderTitle.Parent then loaderTitle:Destroy() end
         end)
