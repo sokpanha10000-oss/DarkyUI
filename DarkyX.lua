@@ -73,18 +73,18 @@ local Themes = {
 Themes.default = {
     TextColor = Color3.fromRGB(240, 240, 240),
 
-    Background = Color3.fromRGB(20, 20, 20),
-    Shadow = Color3.fromRGB(15, 15, 15),
-    Background2 = Color3.fromRGB(18, 18, 18),
-    Panel = Color3.fromRGB(17, 17, 17),
-    Panel2 = Color3.fromRGB(22, 22, 22),
+    Background = Color3.fromRGB(25, 25, 25),
+    Shadow = Color3.fromRGB(20, 20, 20),
+    Background2 = Color3.fromRGB(25, 25, 25),
+    Panel = Color3.fromRGB(25, 25, 25),
+    Panel2 = Color3.fromRGB(25, 25, 25),
 
     NotificationBackground = Color3.fromRGB(20, 20, 20),
     NotificationActionsBackground = Color3.fromRGB(230, 230, 230),
 
-    ElementBackground = Color3.fromRGB(30, 30, 30),
-    ElementBackgroundHover = Color3.fromRGB(36, 36, 36),
-    SecondaryElementBackground = Color3.fromRGB(22, 22, 22),
+    ElementBackground = Color3.fromRGB(35, 35, 35),
+    ElementBackgroundHover = Color3.fromRGB(40, 40, 40),
+    SecondaryElementBackground = Color3.fromRGB(25, 25, 25),
     ElementStroke = Color3.fromRGB(50, 50, 50),
     SecondaryElementStroke = Color3.fromRGB(40, 40, 40),
 
@@ -833,6 +833,62 @@ function DarkyX:CreateWindow(config)
         }, content)
     end
 
+    local notificationLayer = new("Frame", {
+        BackgroundTransparency = 1,
+        AnchorPoint = Vector2.new(1, 0),
+        Position = UDim2.new(1, -14, 0, 76),
+        Size = UDim2.fromOffset(320, 300),
+        ZIndex = 180,
+    }, screenGui)
+    new("UIListLayout", {Padding=UDim.new(0,8), HorizontalAlignment=Enum.HorizontalAlignment.Right, SortOrder=Enum.SortOrder.LayoutOrder, VerticalAlignment=Enum.VerticalAlignment.Top}, notificationLayer)
+
+    function window:Notify(notification)
+        notification = notification or {}
+        local duration = tonumber(notification.duration or notification.Duration) or 4
+        local card = new("Frame", {
+            BackgroundColor3 = theme.NotificationBackground or theme.Panel2,
+            BackgroundTransparency = 0.04,
+            Size = UDim2.fromOffset(300, 68),
+            ZIndex = 181,
+        }, notificationLayer)
+        corner(card, UDim.new(0,12))
+        stroke(card, theme.Border2, 0.15, 1)
+        local icon = makeIcon(card, notification.Icon or notification.icon, 20, theme.Text, 184)
+        if icon then icon.Position = UDim2.fromOffset(14,14) end
+        local left = icon and 44 or 14
+        new("TextLabel", {BackgroundTransparency=1, Text=tostring(notification.title or notification.Title or "Notification"), TextColor3=theme.Text, Font=Enum.Font.GothamBold, TextSize=12, TextXAlignment=Enum.TextXAlignment.Left, Position=UDim2.fromOffset(left,11), Size=UDim2.new(1,-left-12,0,18), ZIndex=184}, card)
+        new("TextLabel", {BackgroundTransparency=1, Text=tostring(notification.content or notification.Content or ""), TextColor3=theme.Muted, Font=Enum.Font.Gotham, TextSize=10, TextWrapped=true, TextXAlignment=Enum.TextXAlignment.Left, TextYAlignment=Enum.TextYAlignment.Top, Position=UDim2.fromOffset(left,31), Size=UDim2.new(1,-left-12,0,28), ZIndex=184}, card)
+        local scale = addScale(card, 0.92)
+        tween(scale,0.26,{Scale=1},Enum.EasingStyle.Back)
+        task.delay(duration,function()
+            if card.Parent then
+                tween(scale,0.2,{Scale=0.9},Enum.EasingStyle.Quint)
+                task.delay(0.2,function() if card.Parent then card:Destroy() end end)
+            end
+        end)
+        return card
+    end
+
+    local tagLayer = new("Frame", {BackgroundTransparency=1, Position=UDim2.fromOffset(315,10), Size=UDim2.fromOffset(180,32), ZIndex=24}, topBar)
+    new("UIListLayout", {FillDirection=Enum.FillDirection.Horizontal, HorizontalAlignment=Enum.HorizontalAlignment.Left, VerticalAlignment=Enum.VerticalAlignment.Center, Padding=UDim.new(0,5), SortOrder=Enum.SortOrder.LayoutOrder}, tagLayer)
+
+    function window:CreateTag(tagConfig)
+        tagConfig = tagConfig or {}
+        local tag = {text=tostring(tagConfig.text or ""), color=tagConfig.color or theme.Accent2}
+        local pill = new("TextLabel", {BackgroundColor3=tag.color, BackgroundTransparency=0.08, Text=tag.text, TextColor3=Color3.new(1,1,1), Font=Enum.Font.GothamBold, TextSize=9, Size=UDim2.fromOffset(math.max(34,18+#tag.text*6),22), ZIndex=25}, tagLayer)
+        corner(pill,UDim.new(1,0))
+        local function updateSize() pill.Size=UDim2.fromOffset(math.max(34,18+#tag.text*6),22) end
+        function tag:Set(config)
+            config=config or {}
+            if config.text~=nil then tag.text=tostring(config.text); pill.Text=tag.text; updateSize() end
+            if config.color then tag.color=config.color; tween(pill,0.18,{BackgroundColor3=config.color}) end
+            return tag
+        end
+        function tag:SetText(text) tag.text=tostring(text or ""); pill.Text=tag.text; updateSize(); return tag end
+        function tag:SetColor(color) tag.color=color; tween(pill,0.18,{BackgroundColor3=color}); return tag end
+        return tag
+    end
+
     local floatingWidth = tonumber(config.floatingWidth) or 156
     local floatingHeight = tonumber(config.floatingHeight) or 42
     local floating = new("TextButton", {
@@ -1204,28 +1260,28 @@ function DarkyX:CreateWindow(config)
                 BackgroundColor3 = isDefaultTheme and theme.ToggleBackground or theme.Panel2,
                 AnchorPoint = Vector2.new(1, 0.5),
                 Position = UDim2.new(1, -14, 0.5, 0),
-                Size = UDim2.fromOffset(56, 25),
+                Size = UDim2.fromOffset(72, 28),
                 ZIndex = 11,
             }, button)
             corner(track, UDim.new(1, 0))
-            stroke(track, isDefaultTheme and theme.ToggleDisabledOuterStroke or Color3.fromRGB(104, 106, 114), 0.08, 1)
+            local trackStroke = stroke(track, isDefaultTheme and theme.ToggleDisabledOuterStroke or Color3.fromRGB(104, 106, 114), 0.08, 1)
             local knob = new("Frame", {
-                BackgroundColor3 = isDefaultTheme and theme.ToggleDisabled or theme.Muted,
+                BackgroundColor3 = Color3.fromRGB(255, 255, 255),
                 AnchorPoint = Vector2.new(0, 0.5),
                 Position = UDim2.new(0, 3, 0.5, 0),
-                Size = UDim2.fromOffset(38, 19),
+                Size = UDim2.fromOffset(48, 22),
                 ZIndex = 12,
             }, track)
             corner(knob, UDim.new(1, 0))
-            local knobStroke = stroke(knob, Color3.new(1, 1, 1), 0.72, 2)
+            local knobStroke = stroke(knob, Color3.fromRGB(255, 255, 255), 0.18, 2.5)
 
             local function apply(stateValue, fire)
                 state = stateValue == true
-                local x = state and UDim2.new(1, -41, 0.5, 0) or UDim2.new(0, 3, 0.5, 0)
+                local x = state and UDim2.new(1, -51, 0.5, 0) or UDim2.new(0, 3, 0.5, 0)
                 tween(track, 0.19, {BackgroundColor3 = isDefaultTheme and theme.ToggleBackground or (state and theme.AccentDark or theme.Panel2)})
-                tween(knob, 0.22, {Position = x, BackgroundColor3 = isDefaultTheme and (state and theme.ToggleEnabled or theme.ToggleDisabled) or (state and theme.White or theme.Muted)}, Enum.EasingStyle.Quint)
-                tween(track:FindFirstChildOfClass("UIStroke"), 0.18, {Color = isDefaultTheme and (state and theme.ToggleEnabledOuterStroke or theme.ToggleDisabledOuterStroke) or Color3.fromRGB(104, 106, 114)})
-                tween(knobStroke, 0.18, {Color = Color3.new(1, 1, 1), Transparency = state and 0.05 or 0.58, Thickness = state and 2 or 1})
+                tween(knob, 0.22, {Position = x, BackgroundColor3 = Color3.fromRGB(255, 255, 255)}, Enum.EasingStyle.Quint)
+                tween(trackStroke, 0.18, {Color = isDefaultTheme and (state and theme.ToggleEnabledOuterStroke or theme.ToggleDisabledOuterStroke) or Color3.fromRGB(104, 106, 114)})
+                tween(knobStroke, 0.18, {Color = Color3.fromRGB(255, 255, 255), Transparency = state and 0.0 or 0.35, Thickness = state and 3 or 2})
                 if fire and typeof(element.callback) == "function" then task.spawn(element.callback, state) end
             end
             apply(state, false)
@@ -1556,6 +1612,204 @@ function DarkyX:CreateWindow(config)
             return api
         end
 
+        function tab:CreateColorPicker(element)
+            element = element or {}
+            tab.Order += 1
+            local seed = element.color or Color3.fromRGB(255, 255, 255)
+            local h, sat, val = Color3.toHSV(seed)
+            local alpha = math.clamp(tonumber(element.alpha) or 1, 0, 1)
+            local hasDescription = element.description and tostring(element.description) ~= ""
+            local closedHeight = hasDescription and 72 or 58
+            local expandedHeight = closedHeight + 188
+            local open = false
+
+            local holder = new("Frame", {
+                BackgroundTransparency = 1,
+                Size = UDim2.new(1, 0, 0, closedHeight),
+                LayoutOrder = tab.Order,
+                ClipsDescendants = true,
+                ZIndex = 12,
+            }, tab.Page)
+
+            local button = new("TextButton", {
+                AutoButtonColor = false,
+                BackgroundColor3 = elementBox,
+                Text = "",
+                Size = UDim2.new(1, 0, 0, closedHeight),
+                ZIndex = 13,
+            }, holder)
+            styleElementBox(button, 11)
+            setTextPair(button, element.name or "Color", element.description, theme, 7, -118, 14)
+
+            local preview = new("Frame", {
+                BackgroundColor3 = seed,
+                Position = UDim2.new(1, -58, 0.5, -12),
+                Size = UDim2.fromOffset(38, 24),
+                ZIndex = 15,
+            }, button)
+            corner(preview, UDim.new(1, 0))
+            stroke(preview, theme.Border2, 0.15, 1)
+
+            local arrow = makeIcon(button, "chevron-down", 16, theme.Muted, 16)
+            if arrow then
+                arrow.AnchorPoint = Vector2.new(0.5, 0.5)
+                arrow.Position = UDim2.new(1, -16, 0.5, 0)
+            end
+
+            local panel = new("Frame", {
+                BackgroundColor3 = theme.Panel2,
+                Position = UDim2.fromOffset(8, closedHeight + 7),
+                Size = UDim2.new(1, -16, 0, 168),
+                Visible = false,
+                ZIndex = 20,
+            }, holder)
+            corner(panel, UDim.new(0, 11))
+            stroke(panel, isDefaultTheme and theme.ElementStroke or theme.Border2, 0.1, 1)
+
+            local sv = new("Frame", {
+                BackgroundColor3 = Color3.fromHSV(h, 1, 1),
+                Position = UDim2.fromOffset(12, 10),
+                Size = UDim2.fromOffset(154, 132),
+                ZIndex = 21,
+            }, panel)
+            corner(sv, UDim.new(0, 9))
+            local svWhite = new("Frame", {BackgroundTransparency = 0, Size = UDim2.fromScale(1, 1), ZIndex = 22}, sv)
+            corner(svWhite, UDim.new(0, 9))
+            gradient(svWhite, {
+                ColorSequenceKeypoint.new(0, Color3.new(1,1,1)),
+                ColorSequenceKeypoint.new(1, Color3.new(1,1,1)),
+            }, 0, NumberSequence.new({NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(1, 1)}))
+            local svBlack = new("Frame", {BackgroundColor3 = Color3.new(0,0,0), BackgroundTransparency = 0, Size = UDim2.fromScale(1, 1), ZIndex = 23}, sv)
+            corner(svBlack, UDim.new(0, 9))
+            gradient(svBlack, {
+                ColorSequenceKeypoint.new(0, Color3.new(0,0,0)),
+                ColorSequenceKeypoint.new(1, Color3.new(0,0,0)),
+            }, 90, NumberSequence.new({NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(1, 0)}))
+            local svMarker = new("Frame", {BackgroundColor3 = Color3.new(1,1,1), AnchorPoint = Vector2.new(0.5,0.5), Size = UDim2.fromOffset(12,12), ZIndex = 24}, sv)
+            corner(svMarker, UDim.new(1, 0))
+            stroke(svMarker, Color3.new(0,0,0), 0, 1)
+
+            local hue = new("Frame", {Position = UDim2.fromOffset(174, 10), Size = UDim2.fromOffset(18,132), ZIndex = 21}, panel)
+            corner(hue, UDim.new(1, 0))
+            gradient(hue, {
+                ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 0)),
+                ColorSequenceKeypoint.new(0.17, Color3.fromRGB(255,255,0)),
+                ColorSequenceKeypoint.new(0.34, Color3.fromRGB(0,255,0)),
+                ColorSequenceKeypoint.new(0.50, Color3.fromRGB(0,255,255)),
+                ColorSequenceKeypoint.new(0.67, Color3.fromRGB(0,0,255)),
+                ColorSequenceKeypoint.new(0.84, Color3.fromRGB(255,0,255)),
+                ColorSequenceKeypoint.new(1, Color3.fromRGB(255,0,0)),
+            }, 90)
+            local hueMarker = new("Frame", {BackgroundColor3 = Color3.new(1,1,1), AnchorPoint = Vector2.new(0.5,0.5), Size = UDim2.fromOffset(24,4), ZIndex = 23}, hue)
+            corner(hueMarker, UDim.new(1,0))
+            stroke(hueMarker, Color3.new(0,0,0), 0.15, 1)
+
+            local alphaBar = new("Frame", {Position = UDim2.fromOffset(12,149), Size = UDim2.new(1,-24,0,8), ZIndex = 21}, panel)
+            corner(alphaBar, UDim.new(1,0))
+            local alphaFill = new("Frame", {BackgroundColor3 = seed, Size = UDim2.fromScale(alpha,1), ZIndex = 22}, alphaBar)
+            corner(alphaFill, UDim.new(1,0))
+            local alphaMarker = new("Frame", {BackgroundColor3 = Color3.new(1,1,1), AnchorPoint = Vector2.new(0.5,0.5), Position = UDim2.new(alpha,0,0.5,0), Size = UDim2.fromOffset(12,12), ZIndex = 23}, alphaBar)
+            corner(alphaMarker, UDim.new(1,0))
+            stroke(alphaMarker, Color3.new(0,0,0), 0.15, 1)
+
+            local hexLabel = new("TextLabel", {
+                BackgroundTransparency = 1,
+                TextColor3 = theme.Muted,
+                Font = Enum.Font.Gotham,
+                TextSize = 9,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                Position = UDim2.fromOffset(204, 20),
+                Size = UDim2.new(1,-214,0,18),
+                ZIndex = 22,
+            }, panel)
+
+            local function updateVisuals(fire)
+                local color = Color3.fromHSV(h, sat, val)
+                sv.BackgroundColor3 = Color3.fromHSV(h, 1, 1)
+                svMarker.Position = UDim2.new(sat, 0, 1-val, 0)
+                hueMarker.Position = UDim2.new(0.5, 0, h, 0)
+                alphaFill.BackgroundColor3 = color
+                alphaFill.Size = UDim2.fromScale(alpha, 1)
+                alphaMarker.Position = UDim2.new(alpha, 0, 0.5, 0)
+                preview.BackgroundColor3 = color
+                hexLabel.Text = string.format("#%02X%02X%02X  %d%%", math.floor(color.R*255+0.5), math.floor(color.G*255+0.5), math.floor(color.B*255+0.5), math.floor(alpha*100+0.5))
+                if fire and typeof(element.callback) == "function" then task.spawn(element.callback, color, alpha) end
+            end
+
+            local function pct(guiObject, input)
+                local x = math.clamp((input.Position.X - guiObject.AbsolutePosition.X) / math.max(guiObject.AbsoluteSize.X, 1), 0, 1)
+                local y = math.clamp((input.Position.Y - guiObject.AbsolutePosition.Y) / math.max(guiObject.AbsoluteSize.Y, 1), 0, 1)
+                return x, y
+            end
+
+            local function bindDrag(guiObject, handler)
+                local dragging = false
+                guiObject.InputBegan:Connect(function(input)
+                    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                        dragging = true
+                        handler(input)
+                    end
+                end)
+                UserInputService.InputChanged:Connect(function(input)
+                    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then handler(input) end
+                end)
+                UserInputService.InputEnded:Connect(function(input)
+                    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = false end
+                end)
+            end
+
+            bindDrag(sv, function(input)
+                local x,y = pct(sv,input)
+                sat,val = x,1-y
+                updateVisuals(true)
+            end)
+            bindDrag(hue, function(input)
+                local _,y = pct(hue,input)
+                h = y
+                updateVisuals(true)
+            end)
+            bindDrag(alphaBar, function(input)
+                local x = pct(alphaBar,input)
+                alpha = x
+                updateVisuals(true)
+            end)
+
+            local function setOpen(nextOpen)
+                open = nextOpen
+                if open then
+                    if window._ActiveColorPicker and window._ActiveColorPicker ~= panel then window._ActiveColorPicker.Visible = false end
+                    window._ActiveColorPicker = panel
+                    panel.Visible = true
+                    panel.Position = UDim2.fromOffset(8, closedHeight-8)
+                    tween(panel,0.28,{Position=UDim2.fromOffset(8,closedHeight+7)},Enum.EasingStyle.Quint)
+                    tween(holder,0.3,{Size=UDim2.new(1,0,0,expandedHeight)},Enum.EasingStyle.Quint)
+                    if arrow then tween(arrow,0.2,{Rotation=180,ImageColor3=theme.Accent2}) end
+                else
+                    if window._ActiveColorPicker == panel then window._ActiveColorPicker=nil end
+                    tween(panel,0.2,{Position=UDim2.fromOffset(8,closedHeight-8)},Enum.EasingStyle.Quint)
+                    tween(holder,0.24,{Size=UDim2.new(1,0,0,closedHeight)},Enum.EasingStyle.Quint)
+                    if arrow then tween(arrow,0.2,{Rotation=0,ImageColor3=theme.Muted}) end
+                    task.delay(0.2,function() if not open and panel.Parent then panel.Visible=false end end)
+                end
+            end
+            button.MouseEnter:Connect(function() tween(button,0.15,{BackgroundColor3=elementBoxHover}) end)
+            button.MouseLeave:Connect(function() if not open then tween(button,0.15,{BackgroundColor3=elementBox}) end end)
+            button.MouseButton1Click:Connect(function() setOpen(not open) end)
+
+            local api = {}
+            function api:Set(color, alphaValue, fire)
+                local c = color or Color3.new(1,1,1)
+                h,sat,val = Color3.toHSV(c)
+                alpha = math.clamp(tonumber(alphaValue) or alpha,0,1)
+                updateVisuals(fire ~= false)
+            end
+            function api:Get() return Color3.fromHSV(h,sat,val), alpha end
+            updateVisuals(false)
+            if element.flag then window._StateEntries[tostring(element.flag)] = api end
+            registerSearchItem(tab, holder, element.name or "ColorPicker", element.description)
+            return api
+        end
+
         function tab:CreateSlider(element)
             element = element or {}
             tab.Order += 1
@@ -1594,11 +1848,11 @@ function DarkyX:CreateWindow(config)
                 BackgroundColor3 = theme.White,
                 AnchorPoint = Vector2.new(0.5, 0.5),
                 Position = UDim2.fromScale(0, 0.5),
-                Size = UDim2.fromOffset(28, 16),
+                Size = UDim2.fromOffset(34, 20),
                 ZIndex = 13,
             }, track)
             corner(knob, UDim.new(1, 0))
-            local knobStroke = stroke(knob, Color3.new(1, 1, 1), 0.18, 2)
+            local knobStroke = stroke(knob, Color3.new(1, 1, 1), 0.0, 2.5)
             local draggingSlider = false
             local function apply(valueValue, fire)
                 local increment = tonumber(element.increment) or 1
@@ -1631,6 +1885,43 @@ function DarkyX:CreateWindow(config)
             function api:Get() return value end
             if element.flag then window._StateEntries[tostring(element.flag)] = api end
             registerSearchItem(tab, holder, element.name or "Slider", element.description)
+            return api
+        end
+
+        function tab:CreateStat(element)
+            element = element or {}
+            tab.Order += 1
+            local value = element.value
+            local holder = new("Frame", {
+                BackgroundColor3 = elementBox,
+                Size = UDim2.new(1, 0, 0, element.description and 62 or 52),
+                LayoutOrder = tab.Order,
+                ZIndex = 9,
+            }, tab.Page)
+            styleElementBox(holder, 11)
+            setTextPair(holder, element.name or "Stat", element.description, theme, 8, -92, 10)
+            local valueLabel = new("TextLabel", {
+                BackgroundTransparency = 1,
+                Text = tostring(element.prefix or "") .. tostring(value),
+                TextColor3 = theme.Text,
+                Font = Enum.Font.GothamBold,
+                TextSize = 16,
+                TextXAlignment = Enum.TextXAlignment.Right,
+                Position = UDim2.new(0.48, 0, 0, 0),
+                Size = UDim2.new(0.49, -14, 1, 0),
+                ZIndex = 11,
+            }, holder)
+            local api = {value = value}
+            function api:Set(newValue)
+                value = newValue
+                api.value = newValue
+                valueLabel.Text = tostring(element.prefix or "") .. tostring(newValue)
+                return api
+            end
+            function api:Get() return value end
+            api:Set(value)
+            if element.flag then window._StateEntries[tostring(element.flag)] = api end
+            registerSearchItem(tab, holder, element.name or "Stat", element.description)
             return api
         end
 
@@ -1758,6 +2049,196 @@ function DarkyX:CreateWindow(config)
         end
         setSettingsStatus("Loaded")
     end)
+
+    local function getExecutorRequest()
+        return request or http_request or syn_request
+    end
+
+    local function sha256Hex(input)
+        local cryptApi = crypt or (syn and syn.crypt)
+        if cryptApi and type(cryptApi.hash) == "function" then
+            local ok, result = pcall(function() return cryptApi.hash(tostring(input), "sha256") end)
+            if ok and type(result) == "string" then return result end
+        end
+        error("SHA-256 is unavailable in this executor.")
+    end
+
+    local function getClientIdentifier()
+        if type(gethwid) == "function" then
+            local ok, value = pcall(gethwid)
+            if ok and value then return tostring(value) end
+        end
+        return tostring(LocalPlayer and LocalPlayer.UserId or 0)
+    end
+
+    local function createPlatoboostService(serviceId, secret)
+        local httpRequest = getExecutorRequest()
+        local setClipboardFn = setclipboard or toclipboard
+        if type(httpRequest) ~= "function" then
+            return {Verify=function() return false,"HTTP request function is unavailable." end, Copy=function() return false,"HTTP request function is unavailable." end}
+        end
+        local http = game:GetService("HttpService")
+        local host = "https://api.platoboost.app"
+        local cachedLink, cachedAt = "", 0
+        local busy = false
+        local function send(opt)
+            local ok, response = pcall(httpRequest,opt)
+            if not ok or not response then return nil,"Request failed." end
+            return response
+        end
+        pcall(function()
+            local probe = send({Url=host.."/public/connectivity",Method="GET"})
+            if not probe or (probe.StatusCode ~= 200 and probe.StatusCode ~= 429) then host="https://api.platoboost.net" end
+        end)
+        local function keyLink()
+            if cachedLink ~= "" and cachedAt + 600 > os.time() then return true,cachedLink end
+            local response,err=send({Url=host.."/public/start",Method="POST",Body=http:JSONEncode({service=serviceId,identifier=sha256Hex(getClientIdentifier())}),Headers={["Content-Type"]="application/json",["User-Agent"]="Roblox/Exploit"}})
+            if not response then return false,err end
+            if response.StatusCode==429 then return false,"You are being rate limited." end
+            if response.StatusCode~=200 then return false,"Platoboost returned HTTP "..tostring(response.StatusCode) end
+            local ok,data=pcall(function() return http:JSONDecode(response.Body) end)
+            if not ok or type(data)~="table" or data.success~=true then return false,(type(data)=="table" and data.message) or "Unable to create key link." end
+            cachedLink=data.data and data.data.url or ""
+            cachedAt=os.time()
+            return cachedLink~="",cachedLink
+        end
+        local function verify(key)
+            if busy then return false,"A request is already being sent." end
+            busy=true
+            local nonce=string.format("%08x%08x",math.random(0,0x7fffffff),math.random(0,0x7fffffff))
+            local identifier=sha256Hex(getClientIdentifier())
+            local encodedKey=http:UrlEncode(tostring(key or ""))
+            local url=host.."/public/whitelist/"..tostring(serviceId).."?identifier="..identifier.."&key="..encodedKey.."&nonce="..http:UrlEncode(nonce)
+            local response,err=send({Url=url,Method="GET"})
+            busy=false
+            if not response then return false,err end
+            if response.StatusCode==429 then return false,"You are being rate limited. Try again later." end
+            if response.StatusCode~=200 then return false,"Platoboost returned HTTP "..tostring(response.StatusCode) end
+            local ok,data=pcall(function() return http:JSONDecode(response.Body) end)
+            if not ok or type(data)~="table" or data.success~=true then return false,(type(data)=="table" and data.message) or "Platoboost verification failed." end
+            if data.data and data.data.valid==true then
+                local expected=sha256Hex("true-"..nonce.."-"..tostring(secret or ""))
+                if tostring(data.data.hash)==expected then return true,"" end
+                return false,"Platoboost integrity verification failed."
+            end
+            if tostring(key or ""):sub(1,4)=="KEY_" then
+                local redeemNonce=string.format("%08x%08x",math.random(0,0x7fffffff),math.random(0,0x7fffffff))
+                local redeemResponse,redeemErr=send({Url=host.."/public/redeem/"..tostring(serviceId),Method="POST",Body=http:JSONEncode({identifier=identifier,key=key,nonce=redeemNonce}),Headers={["Content-Type"]="application/json"}})
+                if not redeemResponse then return false,redeemErr end
+                if redeemResponse.StatusCode~=200 then return false,"Platoboost redeem failed." end
+                local okRedeem,redeemData=pcall(function() return http:JSONDecode(redeemResponse.Body) end)
+                if okRedeem and type(redeemData)=="table" and redeemData.success==true and redeemData.data and redeemData.data.valid==true then
+                    local expected=sha256Hex("true-"..redeemNonce.."-"..tostring(secret or ""))
+                    if tostring(redeemData.data.hash)==expected then return true,"" end
+                    return false,"Platoboost integrity verification failed."
+                end
+            end
+            return false,"Key is invalid."
+        end
+        return {
+            Verify=verify,
+            Copy=function()
+                local ok,link=keyLink()
+                if ok and type(setClipboardFn)=="function" then pcall(setClipboardFn,link) end
+                return ok,link
+            end,
+        }
+    end
+
+    function window:CreateKeySystem(config)
+        config=config or {}
+        local settings=config.KeySettings or config
+        local title=tostring(settings.Title or "Access Required")
+        local subtitle=tostring(settings.Subtitle or "Key System")
+        local note=tostring(settings.Note or "Enter your key to continue.")
+        local fileName=tostring(settings.FileName or "DarkyX_Key")
+        local saveKey=settings.SaveKey==true
+        local acceptedKeys=settings.Key
+        local grab=settings.GrabKeyFromSite==true
+        local siteUrl=settings.KeyURL or settings.URL
+        local kind=string.lower(tostring(settings.Type or ""))
+        local serviceId=settings.ServiceId
+        local secret=settings.Secret or settings.Sercet
+        if settings.PlatoboostAPI and type(settings.PlatoboostAPI)=="table" then
+            local first=settings.PlatoboostAPI[1]
+            if type(first)=="table" then
+                kind=string.lower(tostring(first.Type or kind))
+                serviceId=first.ServiceId or serviceId
+                secret=first.Secret or first.Sercet or secret
+            end
+        end
+        local overlay=new("Frame",{BackgroundTransparency=1,Size=UDim2.fromScale(1,1),ZIndex=300},screenGui)
+        local panel=new("Frame",{BackgroundColor3=theme.Panel2,BackgroundTransparency=0.02,AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromScale(0.5,0.5),Size=UDim2.fromOffset(math.min(420,windowWidth-40),260),ZIndex=301},overlay)
+        corner(panel,UDim.new(0,16))
+        stroke(panel,Color3.fromRGB(255,255,255),0.82,1)
+        local titleLabel=new("TextLabel",{BackgroundTransparency=1,Text=title,TextColor3=theme.Text,Font=Enum.Font.GothamBold,TextSize=18,Position=UDim2.fromOffset(22,20),Size=UDim2.new(1,-44,0,24),ZIndex=302},panel)
+        new("TextLabel",{BackgroundTransparency=1,Text=subtitle,TextColor3=theme.Muted,Font=Enum.Font.Gotham,TextSize=11,Position=UDim2.fromOffset(22,45),Size=UDim2.new(1,-44,0,18),ZIndex=302},panel)
+        new("TextLabel",{BackgroundTransparency=1,Text=note,TextWrapped=true,TextColor3=theme.Muted,Font=Enum.Font.Gotham,TextSize=10,TextXAlignment=Enum.TextXAlignment.Left,Position=UDim2.fromOffset(22,72),Size=UDim2.new(1,-44,0,38),ZIndex=302},panel)
+        local keyBox=new("TextBox",{BackgroundColor3=theme.Element,ClearTextOnFocus=false,PlaceholderText="Enter key...",PlaceholderColor3=theme.Muted,Text="",TextColor3=theme.Text,Font=Enum.Font.Gotham,TextSize=11,Position=UDim2.fromOffset(22,118),Size=UDim2.new(1,-44,0,38),ZIndex=302},panel)
+        corner(keyBox,UDim.new(0,10)); stroke(keyBox,theme.Border2,0.12,1)
+        local status=new("TextLabel",{BackgroundTransparency=1,Text="",TextColor3=theme.Muted,Font=Enum.Font.Gotham,TextSize=9,TextXAlignment=Enum.TextXAlignment.Left,Position=UDim2.fromOffset(22,158),Size=UDim2.new(1,-44,0,18),ZIndex=302},panel)
+        local getButton=new("TextButton",{AutoButtonColor=false,BackgroundColor3=theme.Panel,Text="Get Key",TextColor3=theme.Text,Font=Enum.Font.GothamBold,TextSize=10,Position=UDim2.fromOffset(22,190),Size=UDim2.new(0.33,-16,0,36),ZIndex=302},panel)
+        local submitButton=getButton:Clone(); submitButton.Text="Submit"; submitButton.Position=UDim2.new(0.33,-4,0,190); submitButton.Size=UDim2.new(0.34,-8,0,36); submitButton.Parent=panel
+        local cancelButton=getButton:Clone(); cancelButton.Text="Cancel"; cancelButton.Position=UDim2.new(0.67,4,0,190); cancelButton.Size=UDim2.new(0.33,-16,0,36); cancelButton.Parent=panel
+        for _,b in ipairs({getButton,submitButton,cancelButton}) do corner(b,UDim.new(0,10)); stroke(b,theme.Border2,0.18,1) end
+
+        local service
+        if kind=="platoboost" and serviceId and secret then
+            local ok,result=pcall(createPlatoboostService,serviceId,secret)
+            if ok then service=result else status.Text="Platoboost setup failed."; status.TextColor3=theme.Danger end
+        end
+        local function accepted(key)
+            if service then return service.Verify(key) end
+            if type(acceptedKeys)=="table" then
+                for _,allowed in ipairs(acceptedKeys) do if tostring(allowed)==tostring(key) then return true,"" end end
+            elseif acceptedKeys~=nil then
+                return tostring(acceptedKeys)==tostring(key),tostring(acceptedKeys)==tostring(key) and "" or "Invalid key."
+            end
+            if grab and siteUrl and type(game.HttpGet)=="function" then
+                local ok,raw=pcall(function() return game:HttpGet(siteUrl) end)
+                if ok and tostring(raw)==tostring(key) then return true,"" end
+            end
+            return false,"Invalid key."
+        end
+        local function saveKeyValue(key)
+            if saveKey and type(writefile)=="function" then pcall(writefile,fileName..".txt",tostring(key)) end
+        end
+        local function loadKeyValue()
+            if not saveKey or type(readfile)~="function" or type(isfile)~="function" or not isfile(fileName..".txt") then return nil end
+            local ok,value=pcall(readfile,fileName..".txt")
+            return ok and value or nil
+        end
+        local unlocked=false
+        local function unlock(message)
+            unlocked=true
+            status.Text=message or "Key accepted."
+            status.TextColor3=theme.Success
+            tween(panel,0.24,{Position=UDim2.fromScale(0.5,0.46)},Enum.EasingStyle.Quint)
+            task.delay(0.23,function() if overlay.Parent then overlay:Destroy() end end)
+        end
+        local function verifyAndUnlock(key)
+            key=tostring(key or "")
+            if key=="" then status.Text="Enter a key first."; status.TextColor3=theme.Danger; return false end
+            status.Text="Checking..."; status.TextColor3=theme.Muted
+            local ok,valid,message=pcall(accepted,key)
+            if ok and valid then saveKeyValue(key); unlock("Key accepted."); return true end
+            status.Text=message or "Invalid key."; status.TextColor3=theme.Danger; return false
+        end
+        submitButton.MouseButton1Click:Connect(function() task.spawn(verifyAndUnlock,keyBox.Text) end)
+        getButton.MouseButton1Click:Connect(function()
+            if service then
+                local ok,result=service.Copy(); status.Text=ok and "Key link copied." or tostring(result); status.TextColor3=ok and theme.Success or theme.Danger
+            elseif grab and siteUrl then
+                local clip=setclipboard or toclipboard
+                if type(clip)=="function" then pcall(clip,tostring(siteUrl)); status.Text="Key URL copied."; status.TextColor3=theme.Success else status.Text=tostring(siteUrl) end
+            else status.Text="No key method configured." end
+        end)
+        cancelButton.MouseButton1Click:Connect(function() keyBox.Text="" end)
+        local saved=loadKeyValue()
+        if saved and saved~="" then keyBox.Text=saved; task.spawn(verifyAndUnlock,saved) end
+        window.KeySystem=overlay
+        return {Verify=function(key) keyBox.Text=tostring(key or ""); return verifyAndUnlock(keyBox.Text) end, Destroy=function() if overlay.Parent then overlay:Destroy() end end}
+    end
 
     function window:Toggle()
         setVisible(not window.Visible)
