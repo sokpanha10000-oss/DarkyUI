@@ -71,21 +71,53 @@ local Themes = {
 }
 
 Themes.default = {
-    Background = Color3.fromRGB(2, 3, 5),
-    Background2 = Color3.fromRGB(4, 5, 8),
-    Panel = Color3.fromRGB(5, 6, 9),
-    Panel2 = Color3.fromRGB(7, 8, 12),
-    Element = Color3.fromRGB(10, 11, 16),
-    ElementHover = Color3.fromRGB(16, 17, 24),
-    ElementPressed = Color3.fromRGB(21, 23, 32),
-    Accent = Color3.fromRGB(92, 145, 255),
-    Accent2 = Color3.fromRGB(142, 183, 255),
-    AccentDark = Color3.fromRGB(31, 60, 120),
-    Text = Color3.fromRGB(246, 248, 252),
-    Muted = Color3.fromRGB(134, 141, 155),
-    Faint = Color3.fromRGB(77, 83, 96),
-    Border = Color3.fromRGB(18, 20, 27),
-    Border2 = Color3.fromRGB(28, 31, 41),
+    TextColor = Color3.fromRGB(240, 240, 240),
+
+    Background = Color3.fromRGB(25, 25, 25),
+    Shadow = Color3.fromRGB(20, 20, 20),
+    Background2 = Color3.fromRGB(23, 23, 23),
+    Panel = Color3.fromRGB(20, 20, 20),
+    Panel2 = Color3.fromRGB(25, 25, 25),
+
+    NotificationBackground = Color3.fromRGB(20, 20, 20),
+    NotificationActionsBackground = Color3.fromRGB(230, 230, 230),
+
+    ElementBackground = Color3.fromRGB(35, 35, 35),
+    ElementBackgroundHover = Color3.fromRGB(40, 40, 40),
+    SecondaryElementBackground = Color3.fromRGB(25, 25, 25),
+    ElementStroke = Color3.fromRGB(50, 50, 50),
+    SecondaryElementStroke = Color3.fromRGB(40, 40, 40),
+
+    SliderBackground = Color3.fromRGB(50, 138, 220),
+    SliderProgress = Color3.fromRGB(50, 138, 220),
+    SliderStroke = Color3.fromRGB(58, 163, 255),
+
+    ToggleBackground = Color3.fromRGB(30, 30, 30),
+    ToggleEnabled = Color3.fromRGB(0, 146, 214),
+    ToggleDisabled = Color3.fromRGB(100, 100, 100),
+    ToggleEnabledStroke = Color3.fromRGB(0, 170, 255),
+    ToggleDisabledStroke = Color3.fromRGB(125, 125, 125),
+    ToggleEnabledOuterStroke = Color3.fromRGB(100, 100, 100),
+    ToggleDisabledOuterStroke = Color3.fromRGB(65, 65, 65),
+
+    DropdownSelected = Color3.fromRGB(40, 40, 40),
+    DropdownUnselected = Color3.fromRGB(30, 30, 30),
+
+    InputBackground = Color3.fromRGB(30, 30, 30),
+    InputStroke = Color3.fromRGB(65, 65, 65),
+    PlaceholderColor = Color3.fromRGB(178, 178, 178),
+
+    Accent = Color3.fromRGB(0, 146, 214),
+    Accent2 = Color3.fromRGB(58, 163, 255),
+    AccentDark = Color3.fromRGB(0, 85, 125),
+    Element = Color3.fromRGB(35, 35, 35),
+    ElementHover = Color3.fromRGB(40, 40, 40),
+    ElementPressed = Color3.fromRGB(30, 30, 30),
+    Text = Color3.fromRGB(240, 240, 240),
+    Muted = Color3.fromRGB(178, 178, 178),
+    Faint = Color3.fromRGB(125, 125, 125),
+    Border = Color3.fromRGB(50, 50, 50),
+    Border2 = Color3.fromRGB(40, 40, 40),
     Danger = Color3.fromRGB(255, 72, 91),
     Success = Color3.fromRGB(67, 221, 147),
     White = Color3.new(1, 1, 1),
@@ -303,10 +335,10 @@ function DarkyX:CreateWindow(config)
     local windowWidth = tonumber(config.width) or 550
     local windowHeight = tonumber(config.height) or 340
     local isDefaultTheme = type(config.theme) ~= "table" and string.lower(tostring(config.theme or "default")) == "default"
-    local elementBox = isDefaultTheme and Color3.fromRGB(34, 35, 41) or theme.Element
-    local elementBoxHover = isDefaultTheme and Color3.fromRGB(43, 44, 51) or theme.ElementHover
-    local elementBorder = isDefaultTheme and Color3.fromRGB(101, 103, 111) or theme.Border
-    local elementBorderTransparency = isDefaultTheme and 0.28 or 0.35
+    local elementBox = isDefaultTheme and theme.ElementBackground or theme.Element
+    local elementBoxHover = isDefaultTheme and theme.ElementBackgroundHover or theme.ElementHover
+    local elementBorder = isDefaultTheme and theme.ElementStroke or theme.Border
+    local elementBorderTransparency = isDefaultTheme and 0.08 or 0.35
     local elementStrokeThickness = 1
 
     local function styleElementBox(object, radius)
@@ -317,11 +349,11 @@ function DarkyX:CreateWindow(config)
                 Name = "DefaultElementLight",
                 Rotation = 90,
                 Color = ColorSequence.new({
-                    ColorSequenceKeypoint.new(0, Color3.fromRGB(48, 49, 56)),
-                    ColorSequenceKeypoint.new(0.34, Color3.fromRGB(44, 45, 52)),
-                    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(39, 40, 47)),
-                    ColorSequenceKeypoint.new(0.58, Color3.fromRGB(35, 36, 42)),
-                    ColorSequenceKeypoint.new(1, Color3.fromRGB(31, 32, 38)),
+                    ColorSequenceKeypoint.new(0, theme.ElementBackgroundHover),
+                    ColorSequenceKeypoint.new(0.34, Color3.fromRGB(38, 38, 38)),
+                    ColorSequenceKeypoint.new(0.5, theme.ElementBackground),
+                    ColorSequenceKeypoint.new(0.58, Color3.fromRGB(31, 31, 31)),
+                    ColorSequenceKeypoint.new(1, theme.SecondaryElementBackground),
                 }),
             }, object)
         end
@@ -1171,14 +1203,14 @@ function DarkyX:CreateWindow(config)
             setTextPair(button, element.name or "Toggle", element.description, theme, 8, -84, 10)
 
             local track = new("Frame", {
-                BackgroundColor3 = theme.Panel2,
+                BackgroundColor3 = isDefaultTheme and theme.ToggleBackground or theme.Panel2,
                 AnchorPoint = Vector2.new(1, 0.5),
                 Position = UDim2.new(1, -14, 0.5, 0),
                 Size = UDim2.fromOffset(56, 25),
                 ZIndex = 11,
             }, button)
             corner(track, UDim.new(1, 0))
-            stroke(track, Color3.fromRGB(104, 106, 114), 0.28, 1)
+            stroke(track, isDefaultTheme and theme.ToggleDisabledOuterStroke or Color3.fromRGB(104, 106, 114), 0.08, 1)
             local trackGlow = new("Frame", {
                 BackgroundColor3 = theme.Accent,
                 BackgroundTransparency = 1,
@@ -1197,22 +1229,24 @@ function DarkyX:CreateWindow(config)
             }, track)
             corner(knobGlow, UDim.new(1, 0))
             local knob = new("Frame", {
-                BackgroundColor3 = theme.Muted,
+                BackgroundColor3 = isDefaultTheme and theme.ToggleDisabled or theme.Muted,
                 AnchorPoint = Vector2.new(0, 0.5),
                 Position = UDim2.new(0, 4, 0.5, 0),
                 Size = UDim2.fromOffset(28, 13),
                 ZIndex = 12,
             }, track)
             corner(knob, UDim.new(1, 0))
-            stroke(knob, Color3.new(1, 1, 1), 0.72, 1)
+            stroke(knob, isDefaultTheme and (state and theme.ToggleEnabledStroke or theme.ToggleDisabledStroke) or Color3.new(1, 1, 1), 0.32, 1)
 
             local function apply(stateValue, fire)
                 state = stateValue == true
                 local x = state and UDim2.new(1, -32, 0.5, 0) or UDim2.new(0, 4, 0.5, 0)
                 local glowX = state and UDim2.new(1, -36, 0.5, 0) or UDim2.new(0, 0, 0.5, 0)
-                tween(track, 0.19, {BackgroundColor3 = state and theme.AccentDark or theme.Panel2})
+                tween(track, 0.19, {BackgroundColor3 = isDefaultTheme and theme.ToggleBackground or (state and theme.AccentDark or theme.Panel2)})
                 tween(trackGlow, 0.2, {BackgroundTransparency = state and 0.1 or 1})
-                tween(knob, 0.22, {Position = x, BackgroundColor3 = state and theme.White or theme.Muted}, Enum.EasingStyle.Quint)
+                tween(knob, 0.22, {Position = x, BackgroundColor3 = isDefaultTheme and (state and theme.ToggleEnabled or theme.ToggleDisabled) or (state and theme.White or theme.Muted)}, Enum.EasingStyle.Quint)
+                tween(track:FindFirstChildOfClass("UIStroke"), 0.18, {Color = isDefaultTheme and (state and theme.ToggleEnabledOuterStroke or theme.ToggleDisabledOuterStroke) or Color3.fromRGB(104, 106, 114)})
+                tween(knob:FindFirstChildOfClass("UIStroke"), 0.18, {Color = isDefaultTheme and (state and theme.ToggleEnabledStroke or theme.ToggleDisabledStroke) or Color3.new(1, 1, 1)})
                 tween(knobGlow, 0.22, {Position = glowX, BackgroundTransparency = state and 0.78 or 0.9, Size = state and UDim2.fromOffset(37, 21) or UDim2.fromOffset(33, 19)}, Enum.EasingStyle.Quint)
                 if fire and typeof(element.callback) == "function" then task.spawn(element.callback, state) end
             end
@@ -1371,7 +1405,7 @@ function DarkyX:CreateWindow(config)
                         local text = tostring(option)
                         local row = new("TextButton", {
                             AutoButtonColor = false,
-                            BackgroundColor3 = selected[text] and theme.AccentDark or elementBox,
+                            BackgroundColor3 = selected[text] and (isDefaultTheme and theme.DropdownSelected or theme.AccentDark) or (isDefaultTheme and theme.DropdownUnselected or elementBox),
                             BackgroundTransparency = 0.03,
                             Text = "",
                             Size = UDim2.new(1, -2, 0, 34),
@@ -1406,8 +1440,8 @@ function DarkyX:CreateWindow(config)
                             Size = UDim2.new(1, -42, 1, 0),
                             ZIndex = 20,
                         }, row)
-                        row.MouseEnter:Connect(function() tween(row, 0.12, {BackgroundColor3 = selected[text] and theme.AccentDark or elementBoxHover}) end)
-                        row.MouseLeave:Connect(function() tween(row, 0.12, {BackgroundColor3 = selected[text] and theme.AccentDark or elementBox}) end)
+                        row.MouseEnter:Connect(function() tween(row, 0.12, {BackgroundColor3 = selected[text] and (isDefaultTheme and theme.DropdownSelected or theme.AccentDark) or (isDefaultTheme and theme.ElementBackgroundHover or elementBoxHover)}) end)
+                        row.MouseLeave:Connect(function() tween(row, 0.12, {BackgroundColor3 = selected[text] and (isDefaultTheme and theme.DropdownSelected or theme.AccentDark) or (isDefaultTheme and theme.DropdownUnselected or elementBox)}) end)
                         row.MouseButton1Click:Connect(function()
                             if element.multiSelect then
                                 selected[text] = not selected[text]
@@ -1570,13 +1604,13 @@ function DarkyX:CreateWindow(config)
                 ZIndex = 11,
             }, holder)
             local track = new("Frame", {
-                BackgroundColor3 = theme.Panel2,
+                BackgroundColor3 = isDefaultTheme and theme.SliderBackground or theme.Panel2,
                 Position = UDim2.new(0, 15, 1, -20),
                 Size = UDim2.new(1, -30, 0, 6),
                 ZIndex = 11,
             }, holder)
             corner(track, UDim.new(1, 0))
-            local fill = new("Frame", {BackgroundColor3 = theme.Accent, Size = UDim2.fromScale(0, 1), ZIndex = 12}, track)
+            local fill = new("Frame", {BackgroundColor3 = isDefaultTheme and theme.SliderProgress or theme.Accent, Size = UDim2.fromScale(0, 1), ZIndex = 12}, track)
             corner(fill, UDim.new(1, 0))
             local knobGlow = new("Frame", {
                 BackgroundColor3 = Color3.new(1, 1, 1),
@@ -1589,7 +1623,7 @@ function DarkyX:CreateWindow(config)
             corner(knobGlow, UDim.new(1, 0))
             local knob = new("Frame", {BackgroundColor3 = theme.White, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0, 0.5), Size = UDim2.fromOffset(22, 12), ZIndex = 13}, track)
             corner(knob, UDim.new(1, 0))
-            stroke(knob, Color3.new(1, 1, 1), 0.72, 1)
+            stroke(knob, isDefaultTheme and theme.SliderStroke or Color3.new(1, 1, 1), 0.32, 1)
             local draggingSlider = false
             local function apply(valueValue, fire)
                 local increment = tonumber(element.increment) or 1
@@ -1638,9 +1672,9 @@ function DarkyX:CreateWindow(config)
             styleElementBox(holder, 11)
             setTextPair(holder, element.name or "Input", element.description, theme, 8, -30, 10)
             local box = new("TextBox", {
-                BackgroundColor3 = theme.Panel2,
+                BackgroundColor3 = isDefaultTheme and theme.InputBackground or theme.Panel2,
                 TextColor3 = theme.Text,
-                PlaceholderColor3 = theme.Muted,
+                PlaceholderColor3 = isDefaultTheme and theme.PlaceholderColor or theme.Muted,
                 PlaceholderText = tostring(element.placeholder or "Enter text"),
                 Text = tostring(element.value or ""),
                 ClearTextOnFocus = false,
@@ -1652,12 +1686,12 @@ function DarkyX:CreateWindow(config)
                 ZIndex = 11,
             }, holder)
             corner(box, UDim.new(0, 8))
-            stroke(box, theme.Border, 0.22, 1)
+            stroke(box, isDefaultTheme and theme.InputStroke or theme.Border, 0.22, 1)
             new("UIPadding", {PaddingLeft = UDim.new(0, 10), PaddingRight = UDim.new(0, 10)}, box)
             local committed = box.Text
             box.Focused:Connect(function() tween(box, 0.15, {BackgroundColor3 = theme.ElementHover}) end)
             box.FocusLost:Connect(function()
-                tween(box, 0.15, {BackgroundColor3 = theme.Panel2})
+                tween(box, 0.15, {BackgroundColor3 = isDefaultTheme and theme.InputBackground or theme.Panel2})
                 if element.numeric and box.Text ~= "" and tonumber(box.Text) == nil then
                     box.Text = committed
                     return
