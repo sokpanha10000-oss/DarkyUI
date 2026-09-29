@@ -73,11 +73,11 @@ local Themes = {
 Themes.default = {
     TextColor = Color3.fromRGB(240, 240, 240),
 
-    Background = Color3.fromRGB(25, 25, 25),
-    Shadow = Color3.fromRGB(20, 20, 20),
-    Background2 = Color3.fromRGB(25, 25, 25),
-    Panel = Color3.fromRGB(25, 25, 25),
-    Panel2 = Color3.fromRGB(25, 25, 25),
+    Background = Color3.fromRGB(10, 14, 11),
+    Shadow = Color3.fromRGB(6, 8, 7),
+    Background2 = Color3.fromRGB(12, 17, 13),
+    Panel = Color3.fromRGB(14, 20, 16),
+    Panel2 = Color3.fromRGB(11, 16, 13),
 
     NotificationBackground = Color3.fromRGB(20, 20, 20),
     NotificationActionsBackground = Color3.fromRGB(230, 230, 230),
@@ -88,15 +88,15 @@ Themes.default = {
     ElementStroke = Color3.fromRGB(50, 50, 50),
     SecondaryElementStroke = Color3.fromRGB(40, 40, 40),
 
-    SliderBackground = Color3.fromRGB(50, 138, 220),
-    SliderProgress = Color3.fromRGB(50, 138, 220),
-    SliderStroke = Color3.fromRGB(58, 163, 255),
+    SliderBackground = Color3.fromRGB(38, 68, 48),
+    SliderProgress = Color3.fromRGB(72, 194, 116),
+    SliderStroke = Color3.fromRGB(105, 224, 146),
 
-    ToggleBackground = Color3.fromRGB(30, 30, 30),
-    ToggleEnabled = Color3.fromRGB(0, 146, 214),
-    ToggleDisabled = Color3.fromRGB(100, 100, 100),
-    ToggleEnabledStroke = Color3.fromRGB(0, 170, 255),
-    ToggleDisabledStroke = Color3.fromRGB(125, 125, 125),
+    ToggleBackground = Color3.fromRGB(26, 34, 29),
+    ToggleEnabled = Color3.fromRGB(72, 194, 116),
+    ToggleDisabled = Color3.fromRGB(78, 84, 80),
+    ToggleEnabledStroke = Color3.fromRGB(105, 224, 146),
+    ToggleDisabledStroke = Color3.fromRGB(118, 123, 120),
     ToggleEnabledOuterStroke = Color3.fromRGB(100, 100, 100),
     ToggleDisabledOuterStroke = Color3.fromRGB(65, 65, 65),
 
@@ -107,17 +107,20 @@ Themes.default = {
     InputStroke = Color3.fromRGB(65, 65, 65),
     PlaceholderColor = Color3.fromRGB(178, 178, 178),
 
-    Accent = Color3.fromRGB(0, 146, 214),
-    Accent2 = Color3.fromRGB(58, 163, 255),
-    AccentDark = Color3.fromRGB(0, 85, 125),
+    Accent = Color3.fromRGB(72, 194, 116),
+    Accent2 = Color3.fromRGB(105, 224, 146),
+    AccentDark = Color3.fromRGB(32, 104, 59),
     Element = Color3.fromRGB(30, 30, 30),
     ElementHover = Color3.fromRGB(36, 36, 36),
     ElementPressed = Color3.fromRGB(24, 24, 24),
     Text = Color3.fromRGB(240, 240, 240),
     Muted = Color3.fromRGB(178, 178, 178),
     Faint = Color3.fromRGB(125, 125, 125),
-    Border = Color3.fromRGB(50, 50, 50),
-    Border2 = Color3.fromRGB(40, 40, 40),
+    Border = Color3.fromRGB(61, 75, 65),
+    Border2 = Color3.fromRGB(42, 54, 45),
+    StatBackground = Color3.fromRGB(24, 78, 46),
+    StatBackgroundHover = Color3.fromRGB(30, 94, 56),
+    StatStroke = Color3.fromRGB(72, 145, 96),
     Danger = Color3.fromRGB(255, 72, 91),
     Success = Color3.fromRGB(67, 221, 147),
     White = Color3.new(1, 1, 1),
@@ -1260,7 +1263,7 @@ function DarkyX:CreateWindow(config)
                 BackgroundColor3 = isDefaultTheme and theme.ToggleBackground or theme.Panel2,
                 AnchorPoint = Vector2.new(1, 0.5),
                 Position = UDim2.new(1, -14, 0.5, 0),
-                Size = UDim2.fromOffset(72, 28),
+                Size = UDim2.fromOffset(58, 24),
                 ZIndex = 11,
             }, button)
             corner(track, UDim.new(1, 0))
@@ -1269,7 +1272,7 @@ function DarkyX:CreateWindow(config)
                 BackgroundColor3 = Color3.fromRGB(255, 255, 255),
                 AnchorPoint = Vector2.new(0, 0.5),
                 Position = UDim2.new(0, 3, 0.5, 0),
-                Size = UDim2.fromOffset(48, 22),
+                Size = UDim2.fromOffset(30, 18),
                 ZIndex = 12,
             }, track)
             corner(knob, UDim.new(1, 0))
@@ -1277,7 +1280,7 @@ function DarkyX:CreateWindow(config)
 
             local function apply(stateValue, fire)
                 state = stateValue == true
-                local x = state and UDim2.new(1, -51, 0.5, 0) or UDim2.new(0, 3, 0.5, 0)
+                local x = state and UDim2.new(1, -33, 0.5, 0) or UDim2.new(0, 3, 0.5, 0)
                 tween(track, 0.19, {BackgroundColor3 = isDefaultTheme and theme.ToggleBackground or (state and theme.AccentDark or theme.Panel2)})
                 tween(knob, 0.22, {Position = x, BackgroundColor3 = Color3.fromRGB(255, 255, 255)}, Enum.EasingStyle.Quint)
                 tween(trackStroke, 0.18, {Color = isDefaultTheme and (state and theme.ToggleEnabledOuterStroke or theme.ToggleDisabledOuterStroke) or Color3.fromRGB(104, 106, 114)})
@@ -1817,42 +1820,52 @@ function DarkyX:CreateWindow(config)
             local minValue, maxValue = tonumber(range[1]) or 0, tonumber(range[2]) or 100
             if minValue > maxValue then minValue, maxValue = maxValue, minValue end
             local value = math.clamp(tonumber(element.value) or minValue, minValue, maxValue)
+            local hasDescription = element.description and tostring(element.description) ~= ""
             local holder = new("Frame", {
                 BackgroundColor3 = elementBox,
-                Size = UDim2.new(1, 0, 0, element.description and 78 or 62),
+                Size = UDim2.new(1, 0, 0, hasDescription and 62 or 48),
                 LayoutOrder = tab.Order,
                 ZIndex = 9,
             }, tab.Page)
             styleElementBox(holder, 11)
-            setTextPair(holder, element.name or "Slider", element.description, theme, 8, -30, 10)
+            setTextPair(holder, element.name or "Slider", element.description, theme, 8, -10, 10)
+
             local valueLabel = new("TextLabel", {
                 BackgroundTransparency = 1,
+                Text = "",
                 TextColor3 = theme.Accent2,
                 Font = Enum.Font.GothamBold,
                 TextSize = 11,
                 TextXAlignment = Enum.TextXAlignment.Right,
-                Position = UDim2.new(0.67, 0, 0, 9),
-                Size = UDim2.new(0.29, -12, 0, 20),
+                AnchorPoint = Vector2.new(1, 0.5),
+                Position = UDim2.new(1, -14, 0.5, 0),
+                Size = UDim2.fromOffset(48, 20),
                 ZIndex = 11,
             }, holder)
+
             local track = new("Frame", {
                 BackgroundColor3 = isDefaultTheme and theme.SliderBackground or theme.Panel2,
-                Position = UDim2.new(0, 15, 1, -20),
-                Size = UDim2.new(1, -30, 0, 6),
+                AnchorPoint = Vector2.new(0, 0.5),
+                Position = UDim2.new(0.48, 0, 0.5, 0),
+                Size = UDim2.new(0.40, 0, 0, 6),
                 ZIndex = 11,
             }, holder)
             corner(track, UDim.new(1, 0))
-            local fill = new("Frame", {BackgroundColor3 = isDefaultTheme and theme.SliderProgress or theme.Accent, Size = UDim2.fromScale(0, 1), ZIndex = 12}, track)
+            local fill = new("Frame", {
+                BackgroundColor3 = isDefaultTheme and theme.SliderProgress or theme.Accent,
+                Size = UDim2.fromScale(0, 1),
+                ZIndex = 12,
+            }, track)
             corner(fill, UDim.new(1, 0))
             local knob = new("Frame", {
-                BackgroundColor3 = theme.White,
+                BackgroundColor3 = Color3.new(1, 1, 1),
                 AnchorPoint = Vector2.new(0.5, 0.5),
                 Position = UDim2.fromScale(0, 0.5),
-                Size = UDim2.fromOffset(34, 20),
+                Size = UDim2.fromOffset(24, 16),
                 ZIndex = 13,
             }, track)
             corner(knob, UDim.new(1, 0))
-            local knobStroke = stroke(knob, Color3.new(1, 1, 1), 0.0, 2.5)
+            local knobStroke = stroke(knob, Color3.new(1, 1, 1), 0.0, 2)
             local draggingSlider = false
             local function apply(valueValue, fire)
                 local increment = tonumber(element.increment) or 1
@@ -1861,7 +1874,7 @@ function DarkyX:CreateWindow(config)
                 local alpha = (value - minValue) / math.max(maxValue - minValue, 0.0001)
                 fill.Size = UDim2.fromScale(alpha, 1)
                 knob.Position = UDim2.new(alpha, 0, 0.5, 0)
-                tween(knobStroke, 0.15, {Color = Color3.new(1, 1, 1), Transparency = 0.05, Thickness = 2})
+                tween(knobStroke, 0.15, {Color = Color3.new(1, 1, 1), Transparency = 0.0, Thickness = 2})
                 valueLabel.Text = tostring(value) .. tostring(element.suffix or "")
                 if fire and typeof(element.callback) == "function" then task.spawn(element.callback, value) end
             end
@@ -1893,12 +1906,17 @@ function DarkyX:CreateWindow(config)
             tab.Order += 1
             local value = element.value
             local holder = new("Frame", {
-                BackgroundColor3 = elementBox,
+                BackgroundColor3 = isDefaultTheme and (theme.StatBackground or Color3.fromRGB(24, 78, 46)) or elementBox,
                 Size = UDim2.new(1, 0, 0, element.description and 62 or 52),
                 LayoutOrder = tab.Order,
                 ZIndex = 9,
             }, tab.Page)
-            styleElementBox(holder, 11)
+            if isDefaultTheme then
+                corner(holder, UDim.new(0, 11))
+                stroke(holder, theme.StatStroke or Color3.fromRGB(72, 145, 96), 0.08, 1)
+            else
+                styleElementBox(holder, 11)
+            end
             setTextPair(holder, element.name or "Stat", element.description, theme, 8, -92, 10)
             local valueLabel = new("TextLabel", {
                 BackgroundTransparency = 1,
