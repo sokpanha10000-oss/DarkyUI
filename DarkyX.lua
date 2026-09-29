@@ -73,18 +73,18 @@ local Themes = {
 Themes.default = {
     TextColor = Color3.fromRGB(240, 240, 240),
 
-    Background = Color3.fromRGB(25, 25, 25),
-    Shadow = Color3.fromRGB(20, 20, 20),
-    Background2 = Color3.fromRGB(23, 23, 23),
-    Panel = Color3.fromRGB(20, 20, 20),
-    Panel2 = Color3.fromRGB(25, 25, 25),
+    Background = Color3.fromRGB(20, 20, 20),
+    Shadow = Color3.fromRGB(15, 15, 15),
+    Background2 = Color3.fromRGB(18, 18, 18),
+    Panel = Color3.fromRGB(17, 17, 17),
+    Panel2 = Color3.fromRGB(22, 22, 22),
 
     NotificationBackground = Color3.fromRGB(20, 20, 20),
     NotificationActionsBackground = Color3.fromRGB(230, 230, 230),
 
-    ElementBackground = Color3.fromRGB(35, 35, 35),
-    ElementBackgroundHover = Color3.fromRGB(40, 40, 40),
-    SecondaryElementBackground = Color3.fromRGB(25, 25, 25),
+    ElementBackground = Color3.fromRGB(30, 30, 30),
+    ElementBackgroundHover = Color3.fromRGB(36, 36, 36),
+    SecondaryElementBackground = Color3.fromRGB(22, 22, 22),
     ElementStroke = Color3.fromRGB(50, 50, 50),
     SecondaryElementStroke = Color3.fromRGB(40, 40, 40),
 
@@ -110,9 +110,9 @@ Themes.default = {
     Accent = Color3.fromRGB(0, 146, 214),
     Accent2 = Color3.fromRGB(58, 163, 255),
     AccentDark = Color3.fromRGB(0, 85, 125),
-    Element = Color3.fromRGB(35, 35, 35),
-    ElementHover = Color3.fromRGB(40, 40, 40),
-    ElementPressed = Color3.fromRGB(30, 30, 30),
+    Element = Color3.fromRGB(30, 30, 30),
+    ElementHover = Color3.fromRGB(36, 36, 36),
+    ElementPressed = Color3.fromRGB(24, 24, 24),
     Text = Color3.fromRGB(240, 240, 240),
     Muted = Color3.fromRGB(178, 178, 178),
     Faint = Color3.fromRGB(125, 125, 125),
@@ -471,22 +471,20 @@ function DarkyX:CreateWindow(config)
     local function makeControl(icon, tint, tooltip)
         local b = new("TextButton", {
             AutoButtonColor = false,
-            BackgroundColor3 = theme.Element,
-            BackgroundTransparency = 0.1,
+            BackgroundTransparency = 1,
             Text = "",
             Size = UDim2.fromOffset(29, 29),
             ZIndex = 16,
         }, controls)
-        corner(b, UDim.new(0, 9))
-        stroke(b, theme.Border2, 0.45, 1)
         local i = makeIcon(b, icon, 15, tint or theme.Muted, 18)
-        if i then i.AnchorPoint = Vector2.new(0.5, 0.5); i.Position = UDim2.fromScale(0.5, 0.5) end
+        if i then
+            i.AnchorPoint = Vector2.new(0.5, 0.5)
+            i.Position = UDim2.fromScale(0.5, 0.5)
+        end
         b.MouseEnter:Connect(function()
-            tween(b, 0.14, {BackgroundColor3 = theme.ElementHover, BackgroundTransparency = 0})
             if i then tween(i, 0.14, {ImageColor3 = tint or theme.Text}) end
         end)
         b.MouseLeave:Connect(function()
-            tween(b, 0.14, {BackgroundColor3 = theme.Element, BackgroundTransparency = 0.1})
             if i then tween(i, 0.14, {ImageColor3 = tint or theme.Muted}) end
         end)
         return b, i
@@ -1041,7 +1039,7 @@ function DarkyX:CreateWindow(config)
             ZIndex = 10,
         }, tabBar)
         local selectedBox = new("Frame", {
-            BackgroundColor3 = theme.Element,
+            BackgroundColor3 = theme.Panel2,
             BackgroundTransparency = 1,
             Size = UDim2.new(1, -2, 1, -2),
             Position = UDim2.fromOffset(1, 1),
@@ -1211,43 +1209,23 @@ function DarkyX:CreateWindow(config)
             }, button)
             corner(track, UDim.new(1, 0))
             stroke(track, isDefaultTheme and theme.ToggleDisabledOuterStroke or Color3.fromRGB(104, 106, 114), 0.08, 1)
-            local trackGlow = new("Frame", {
-                BackgroundColor3 = theme.Accent,
-                BackgroundTransparency = 1,
-                Position = UDim2.fromOffset(1, 1),
-                Size = UDim2.new(1, -2, 1, -2),
-                ZIndex = 10,
-            }, track)
-            corner(trackGlow, UDim.new(1, 0))
-            local knobGlow = new("Frame", {
-                BackgroundColor3 = Color3.new(1, 1, 1),
-                BackgroundTransparency = 0.88,
-                AnchorPoint = Vector2.new(0, 0.5),
-                Position = UDim2.new(0, 0, 0.5, 0),
-                Size = UDim2.fromOffset(33, 19),
-                ZIndex = 11,
-            }, track)
-            corner(knobGlow, UDim.new(1, 0))
             local knob = new("Frame", {
                 BackgroundColor3 = isDefaultTheme and theme.ToggleDisabled or theme.Muted,
                 AnchorPoint = Vector2.new(0, 0.5),
-                Position = UDim2.new(0, 4, 0.5, 0),
-                Size = UDim2.fromOffset(28, 13),
+                Position = UDim2.new(0, 3, 0.5, 0),
+                Size = UDim2.fromOffset(38, 19),
                 ZIndex = 12,
             }, track)
             corner(knob, UDim.new(1, 0))
-            stroke(knob, isDefaultTheme and (state and theme.ToggleEnabledStroke or theme.ToggleDisabledStroke) or Color3.new(1, 1, 1), 0.32, 1)
+            local knobStroke = stroke(knob, Color3.new(1, 1, 1), 0.72, 2)
 
             local function apply(stateValue, fire)
                 state = stateValue == true
-                local x = state and UDim2.new(1, -32, 0.5, 0) or UDim2.new(0, 4, 0.5, 0)
-                local glowX = state and UDim2.new(1, -36, 0.5, 0) or UDim2.new(0, 0, 0.5, 0)
+                local x = state and UDim2.new(1, -41, 0.5, 0) or UDim2.new(0, 3, 0.5, 0)
                 tween(track, 0.19, {BackgroundColor3 = isDefaultTheme and theme.ToggleBackground or (state and theme.AccentDark or theme.Panel2)})
-                tween(trackGlow, 0.2, {BackgroundTransparency = state and 0.1 or 1})
                 tween(knob, 0.22, {Position = x, BackgroundColor3 = isDefaultTheme and (state and theme.ToggleEnabled or theme.ToggleDisabled) or (state and theme.White or theme.Muted)}, Enum.EasingStyle.Quint)
                 tween(track:FindFirstChildOfClass("UIStroke"), 0.18, {Color = isDefaultTheme and (state and theme.ToggleEnabledOuterStroke or theme.ToggleDisabledOuterStroke) or Color3.fromRGB(104, 106, 114)})
-                tween(knob:FindFirstChildOfClass("UIStroke"), 0.18, {Color = isDefaultTheme and (state and theme.ToggleEnabledStroke or theme.ToggleDisabledStroke) or Color3.new(1, 1, 1)})
-                tween(knobGlow, 0.22, {Position = glowX, BackgroundTransparency = state and 0.78 or 0.9, Size = state and UDim2.fromOffset(37, 21) or UDim2.fromOffset(33, 19)}, Enum.EasingStyle.Quint)
+                tween(knobStroke, 0.18, {Color = Color3.new(1, 1, 1), Transparency = state and 0.05 or 0.58, Thickness = state and 2 or 1})
                 if fire and typeof(element.callback) == "function" then task.spawn(element.callback, state) end
             end
             apply(state, false)
@@ -1612,18 +1590,15 @@ function DarkyX:CreateWindow(config)
             corner(track, UDim.new(1, 0))
             local fill = new("Frame", {BackgroundColor3 = isDefaultTheme and theme.SliderProgress or theme.Accent, Size = UDim2.fromScale(0, 1), ZIndex = 12}, track)
             corner(fill, UDim.new(1, 0))
-            local knobGlow = new("Frame", {
-                BackgroundColor3 = Color3.new(1, 1, 1),
-                BackgroundTransparency = 0.84,
+            local knob = new("Frame", {
+                BackgroundColor3 = theme.White,
                 AnchorPoint = Vector2.new(0.5, 0.5),
                 Position = UDim2.fromScale(0, 0.5),
-                Size = UDim2.fromOffset(27, 20),
-                ZIndex = 12,
+                Size = UDim2.fromOffset(28, 16),
+                ZIndex = 13,
             }, track)
-            corner(knobGlow, UDim.new(1, 0))
-            local knob = new("Frame", {BackgroundColor3 = theme.White, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0, 0.5), Size = UDim2.fromOffset(22, 12), ZIndex = 13}, track)
             corner(knob, UDim.new(1, 0))
-            stroke(knob, isDefaultTheme and theme.SliderStroke or Color3.new(1, 1, 1), 0.32, 1)
+            local knobStroke = stroke(knob, Color3.new(1, 1, 1), 0.18, 2)
             local draggingSlider = false
             local function apply(valueValue, fire)
                 local increment = tonumber(element.increment) or 1
@@ -1632,7 +1607,7 @@ function DarkyX:CreateWindow(config)
                 local alpha = (value - minValue) / math.max(maxValue - minValue, 0.0001)
                 fill.Size = UDim2.fromScale(alpha, 1)
                 knob.Position = UDim2.new(alpha, 0, 0.5, 0)
-                knobGlow.Position = UDim2.new(alpha, 0, 0.5, 0)
+                tween(knobStroke, 0.15, {Color = Color3.new(1, 1, 1), Transparency = 0.05, Thickness = 2})
                 valueLabel.Text = tostring(value) .. tostring(element.suffix or "")
                 if fire and typeof(element.callback) == "function" then task.spawn(element.callback, value) end
             end
