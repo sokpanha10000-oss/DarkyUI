@@ -2691,76 +2691,237 @@ local function ShootLoop()
     end
 end
 
-local DarkyX = loadstring(game:HttpGet("https://github.com/sokpanha10000-oss/DarkyUI/releases/latest/download/DarkyX.lua"))()
-
-local darkyWindow = DarkyX:CreateWindow({
-    Title = "DarkyX Hub",
-    Subtitle = "BY D_GAMING",
-    Image = 122219837651457,
-    Background = 130246636539714,
-    LoadingTitle = true,
-    SidebarLayout = true,
-    Size = UDim2.fromOffset(550, 340),
-    UIScale = "0.85",
-    Animation = true,
-    Effect = true,
-    Theme = "cobalt",
-})
+local DarkyXSource = "https://github.com/sokpanha10000-oss/DarkyUI/releases/latest/download/DarkyX.lua"
+local DarkyXLoader, DarkyXLoadError = loadstring(game:HttpGet(DarkyXSource))
+assert(type(DarkyXLoader) == "function", "DarkyX loader could not be downloaded: " .. tostring(DarkyXLoadError))
+local DarkyX = DarkyXLoader()
+assert(type(DarkyX) == "table" and type(DarkyX.CreateWindow) == "function", "DarkyX did not return a valid UI library")
 
 local DARKYX_TAB_ICON = 93364949241311
 local DARKYX_SECTION_ICON = 93364949241311
+local DARKYX_THEME_MAP = type(DarkyX.Theme) == "table" and DarkyX.Theme or nil
+local DARKYX_LEGACY_API = DARKYX_THEME_MAP ~= nil
+    and DARKYX_THEME_MAP.Default ~= nil
+    and DARKYX_THEME_MAP.cobalt == nil
+    and DARKYX_THEME_MAP.Cobalt == nil
 
-local function darkyxValue(options, primary, fallback)
-    local value = options[primary]
-    if value == nil and fallback then
-        value = options[fallback]
+local function resolveDarkyXTheme(preferred)
+    if not DARKYX_THEME_MAP then
+        return preferred
     end
-    return value
+    if DARKYX_THEME_MAP[preferred] ~= nil then
+        return preferred
+    end
+    if DARKYX_THEME_MAP.Cobalt ~= nil then
+        return "Cobalt"
+    end
+    if DARKYX_THEME_MAP.DarkBlue ~= nil then
+        return "DarkBlue"
+    end
+    return "Default"
+end
+
+local darkyWindowSettings = {
+    Title = "DarkyX Hub",
+    Name = "DarkyX Hub",
+    Subtitle = "BY D_GAMING",
+    LoadingSubtitle = "BY D_GAMING",
+    Image = 122219837651457,
+    Icon = 122219837651457,
+    Background = 130246636539714,
+    LoadingTitle = DARKYX_LEGACY_API and "DarkyX Hub" or true,
+    SidebarLayout = true,
+    Size = UDim2.fromOffset(550, 340),
+    UIScale = "0.85",
+    UIscale = "0.85",
+    Animation = true,
+    Effect = true,
+    Theme = resolveDarkyXTheme("cobalt"),
+}
+
+local darkyWindowOk, darkyWindow = pcall(function()
+    return DarkyX:CreateWindow(darkyWindowSettings)
+end)
+assert(darkyWindowOk and type(darkyWindow) == "table" and type(darkyWindow.CreateTab) == "function",
+    "DarkyX CreateWindow failed or returned an incompatible window: " .. tostring(darkyWindow))
+
+local function runUiAttempts(label, attempts)
+    local lastError = "unknown error"
+    for _, attempt in ipairs(attempts) do
+        local ok, result = pcall(attempt)
+        if ok then
+            return true, result
+        end
+        lastError = result
+    end
+    warn("DarkyX UI failed to create " .. tostring(label) .. ": " .. tostring(lastError))
+    return false, nil
+end
+
+local function createDualApiElement(tab, methodName, modernSettings, legacySettings)
+    local method = tab and tab[methodName]
+    if type(method) ~= "function" then
+        warn("DarkyX UI is missing " .. tostring(methodName))
+        return nil
+    end
+
+    local modernAttempt = function()
+        return method(tab, modernSettings)
+    end
+    local legacyAttempt = function()
+        return method(tab, legacySettings)
+    end
+    local attempts = DARKYX_LEGACY_API
+        and {legacyAttempt, modernAttempt}
+        or {modernAttempt, legacyAttempt}
+
+    local ok, result = runUiAttempts(methodName, attempts)
+    if ok then
+        return result
+    end
+    return nil
+end
+
+local function createDarkyXTab(title, icon)
+    local modernAttempt = function()
+        return darkyWindow:CreateTab({
+            Title = tostring(title or "Tab"),
+            Icon = icon or DARKYX_TAB_ICON,
+        })
+    end
+    local legacyAttempt = function()
+        return darkyWindow:CreateTab(tostring(title or "Tab"), icon or DARKYX_TAB_ICON)
+    end
+    local attempts = DARKYX_LEGACY_API
+        and {legacyAttempt, modernAttempt}
+        or {modernAttempt, legacyAttempt}
+    local ok, tab = runUiAttempts("tab '" .. tostring(title) .. "'", attempts)
+    if not ok or type(tab) ~= "table" then
+        error("DarkyX could not create tab '" .. tostring(title) .. "'")
+    end
+    return tab
 end
 
 local function createDarkyXControls(tab)
     local controls = {}
 
     function controls:AddButton(options)
-        options = type(options) == "table" and options or {Title = tostring(options)}
-        return tab:CreateButton({
-            Title = options.Title or options.Name or "Button",
-            Description = options.Description or "",
+        options = type(options) == "table" and options or {Title = tostring(options or "Button")}
+        local title = tostring(options.Title or options.Name or "Button")
+        local callback = type(options.Callback) == "function" and options.Callback or function() end
+        return createDualApiElement(tab, "CreateButton", {
+            Title = title,
+            Description = tostring(options.Description or ""),
             Enabled = options.Enabled ~= false,
-            Callback = options.Callback or function() end,
+            Callback = callback,
+        }, {
+            Name = title,
+            Description = tostring(options.Description or ""),
+            Ext = true,
+            Callback = callback,
         })
     end
 
     function controls:AddToggle(flag, options)
         if type(flag) == "table" then
             options = flag
-            flag = options.Flag or options.Title
+            flag = options.Flag or options.Title or options.Name
         end
-        options = options or {}
-        return tab:CreateToggle({
-            Title = options.Title or tostring(flag or "Toggle"),
-            Flag = options.Flag or flag or options.Title or "Toggle",
-            Value = darkyxValue(options, "Value", "Default") or false,
+        options = type(options) == "table" and options or {}
+        local title = tostring(options.Title or options.Name or flag or "Toggle")
+        local current = options.Value
+        if current == nil then current = options.Default end
+        current = current == true
+        local elementFlag = tostring(options.Flag or flag or title)
+        local callback = type(options.Callback) == "function" and options.Callback or function() end
+
+        return createDualApiElement(tab, "CreateToggle", {
+            Title = title,
+            Flag = elementFlag,
+            Value = current,
             Enabled = options.Enabled ~= false,
-            Callback = options.Callback or function() end,
+            Callback = callback,
+        }, {
+            Name = title,
+            Flag = elementFlag,
+            CurrentValue = current,
+            Ext = true,
+            Callback = callback,
         })
     end
 
     function controls:AddDropdown(flag, options)
         if type(flag) == "table" then
             options = flag
-            flag = options.Flag or options.Title
+            flag = options.Flag or options.Title or options.Name
         end
-        options = options or {}
-        local value = darkyxValue(options, "Value", "Default")
-        return tab:CreateDropdown({
-            Title = options.Title or tostring(flag or "Dropdown"),
-            Flag = options.Flag or flag or options.Title or "Dropdown",
-            MultiSelect = darkyxValue(options, "MultiSelect", "Multi") or false,
-            Options = options.Options or options.Values or {},
+        options = type(options) == "table" and options or {}
+        local title = tostring(options.Title or options.Name or flag or "Dropdown")
+        local choices = options.Options or options.Values
+        if type(choices) ~= "table" then choices = {} end
+        local multi = options.MultiSelect
+        if multi == nil then multi = options.Multi end
+        multi = multi == true
+
+        local value = options.Value
+        if value == nil then value = options.Default end
+        if multi then
+            if value == nil then
+                value = {}
+            elseif type(value) ~= "table" then
+                value = {value}
+            end
+            for index, selected in ipairs(value) do
+                if type(selected) == "number" then
+                    value[index] = choices[selected] or selected
+                end
+            end
+        else
+            if type(value) == "table" then value = value[1] end
+            if type(value) == "number" then value = choices[value] or value end
+            if value == nil or value == "" then value = choices[1] end
+            if value == nil then value = "" end
+        end
+
+        local callback = type(options.Callback) == "function" and options.Callback or function() end
+        local function dropdownCallback(selected)
+            if multi then
+                if type(selected) ~= "table" then
+                    selected = selected == nil and {} or {selected}
+                end
+                callback(selected)
+            else
+                if type(selected) == "table" then selected = selected[1] end
+                callback(selected)
+            end
+        end
+
+        local legacyCurrentOption
+        if multi then
+            legacyCurrentOption = value
+        elseif value == "" then
+            legacyCurrentOption = {}
+        else
+            legacyCurrentOption = {value}
+        end
+
+        local elementFlag = tostring(options.Flag or flag or title)
+        return createDualApiElement(tab, "CreateDropdown", {
+            Title = title,
+            Flag = elementFlag,
+            MultiSelect = multi,
+            Options = choices,
             Value = value,
             Enabled = options.Enabled ~= false,
-            Callback = options.Callback or function() end,
+            Callback = dropdownCallback,
+        }, {
+            Name = title,
+            Flag = elementFlag,
+            MultipleOptions = multi,
+            Options = choices,
+            CurrentOption = legacyCurrentOption,
+            Ext = true,
+            Callback = dropdownCallback,
         })
     end
 
@@ -2769,82 +2930,162 @@ local function createDarkyXControls(tab)
             options = id
             id = nil
         end
-        options = options or {}
-        local range = options.Range or {options.Min or 0, options.Max or 100}
-        local rounding = options.Rounding
-        local increment = options.Increment
+        options = type(options) == "table" and options or {}
+        local title = tostring(options.Title or options.Name or id or "Slider")
+        local range = options.Range
+        if type(range) ~= "table" then
+            range = {options.Min or 0, options.Max or 100}
+        end
+        local minimum = tonumber(range[1]) or 0
+        local maximum = tonumber(range[2]) or 100
+        if maximum < minimum then minimum, maximum = maximum, minimum end
+        if maximum == minimum then maximum = minimum + 1 end
+        range = {minimum, maximum}
+
+        local increment = tonumber(options.Increment)
         if increment == nil then
+            local rounding = tonumber(options.Rounding)
             increment = rounding ~= nil and (10 ^ (-rounding)) or 1
         end
-        return tab:CreateSlider({
-            Title = options.Title or tostring(id or "Slider"),
-            Flag = options.Flag or id or options.Title or "Slider",
+        if increment <= 0 then increment = 1 end
+
+        local value = options.Value
+        if value == nil then value = options.Default end
+        value = tonumber(value) or minimum
+        value = math.clamp(value, minimum, maximum)
+        local elementFlag = tostring(options.Flag or id or title)
+        local callback = type(options.Callback) == "function" and options.Callback or function() end
+
+        return createDualApiElement(tab, "CreateSlider", {
+            Title = title,
+            Flag = elementFlag,
             Range = range,
             Increment = increment,
-            Value = darkyxValue(options, "Value", "Default"),
-            Suffix = options.Suffix or "",
+            Value = value,
+            Suffix = tostring(options.Suffix or ""),
             Enabled = options.Enabled ~= false,
-            Callback = options.Callback or function() end,
+            Callback = callback,
+        }, {
+            Name = title,
+            Flag = elementFlag,
+            Range = range,
+            Increment = increment,
+            CurrentValue = value,
+            Suffix = tostring(options.Suffix or ""),
+            Ext = true,
+            Callback = callback,
         })
     end
 
     function controls:AddInput(flag, options)
         if type(flag) == "table" then
             options = flag
-            flag = options.Flag or options.Title
+            flag = options.Flag or options.Title or options.Name
         end
-        options = options or {}
-        local value = darkyxValue(options, "Value", "Default")
-        return tab:CreateInput({
-            Title = options.Title or tostring(flag or "Input"),
-            Flag = options.Flag or flag or options.Title or "Input",
+        options = type(options) == "table" and options or {}
+        local title = tostring(options.Title or options.Name or flag or "Input")
+        local value = options.Value
+        if value == nil then value = options.Default end
+        if value == nil then value = "" end
+        value = tostring(value)
+        local elementFlag = tostring(options.Flag or flag or title)
+        local callback = type(options.Callback) == "function" and options.Callback or function() end
+
+        return createDualApiElement(tab, "CreateInput", {
+            Title = title,
+            Flag = elementFlag,
             Numeric = options.Numeric == true,
-            Value = value == nil and "" or tostring(value),
-            Placeholder = options.Placeholder or "Enter a value",
+            Value = value,
+            Placeholder = tostring(options.Placeholder or options.PlaceholderText or "Enter a value"),
             Enabled = options.Enabled ~= false,
-            Callback = options.Callback or function() end,
+            Callback = callback,
+        }, {
+            Name = title,
+            Flag = elementFlag,
+            CurrentValue = value,
+            PlaceholderText = tostring(options.Placeholder or options.PlaceholderText or "Enter a value"),
+            RemoveTextAfterFocusLost = options.RemoveTextAfterFocusLost == true,
+            Ext = true,
+            Callback = callback,
         })
     end
 
     function controls:AddLabel(text)
         local initialText = tostring(text or "")
-        local stat
-        local ok, result = pcall(function()
-            return tab:CreateStat({
-                Title = "",
-                Value = initialText,
-                Enabled = true,
-            })
-        end)
-        if ok then
-            stat = result
-        else
-            local fallbackOk, fallbackResult = pcall(function()
-                return tab:CreateButton({
-                    Title = initialText,
-                    Description = "",
-                    Enabled = false,
-                    Callback = function() end,
-                })
+        local label
+        local labelCreated = false
+        if tab and type(tab.CreateLabel) == "function" then
+            local ok, result = pcall(function()
+                return tab:CreateLabel(initialText)
             end)
-            if fallbackOk then
-                stat = fallbackResult
+            if ok then
+                label = result
+                labelCreated = true
             end
         end
 
+        if not labelCreated then
+            label = createDualApiElement(tab, "CreateStat", {
+                Title = initialText ~= "" and initialText or "Status",
+                Value = "",
+                Enabled = true,
+            }, {
+                Name = initialText ~= "" and initialText or "Status",
+                Value = "",
+                Ext = true,
+            })
+        end
+        if not label then
+            label = createDualApiElement(tab, "CreateButton", {
+                Title = initialText,
+                Enabled = false,
+                Callback = function() end,
+            }, {
+                Name = initialText,
+                Callback = function() end,
+                Ext = true,
+            })
+        end
+
+        local function setLabel(newText)
+            if not label then return end
+            local value = tostring(newText or "")
+            pcall(function()
+                if type(label.Set) == "function" then
+                    label:Set(value)
+                elseif type(label.SetText) == "function" then
+                    label:SetText(value)
+                end
+            end)
+        end
+
         return {
-            SetText = function(_, newText)
-                if not stat then return end
-                local value = tostring(newText or "")
-                pcall(function()
-                    if type(stat.Set) == "function" then
-                        stat:Set(value)
-                    elseif type(stat.SetText) == "function" then
-                        stat:SetText(value)
-                    end
-                end)
-            end,
+            SetText = function(_, newText) setLabel(newText) end,
+            Set = function(_, newText) setLabel(newText) end,
         }
+    end
+
+    function controls:AddSection(sectionTitle)
+        local title = tostring(sectionTitle or "Section")
+        local modernSettings = {
+            Title = title,
+            Icon = DARKYX_SECTION_ICON,
+            Draggable = true,
+            Scale = "0.70",
+        }
+        local ok = false
+        local attempts = {
+            function() return tab:CreateSection(modernSettings) end,
+            function() return tab:CreateSection(title) end,
+        }
+        if DARKYX_LEGACY_API then
+            attempts = {attempts[2], attempts[1]}
+        end
+        ok = runUiAttempts("section '" .. title .. "'", attempts)
+        if not ok then
+            warn("DarkyX could not create section '" .. title .. "'; controls will still be created on the tab")
+        end
+        return createDarkyXControls(tab)
     end
 
     return controls
@@ -2852,34 +3093,35 @@ end
 
 Library = {}
 function Library:Notify(options)
-    options = options or {}
-    return darkyWindow:Notify({
-        Title = options.Title or "Notification",
-        Content = options.Content or options.Description or "",
-        Icon = options.Icon or "rbxassetid://0",
-        Duration = options.Duration or 3,
-    })
+    options = type(options) == "table" and options or {}
+    local title = tostring(options.Title or "Notification")
+    local content = tostring(options.Content or options.Description or "")
+    local icon = options.Icon or options.Image or 122219837651457
+    local payload = {
+        Title = title,
+        Content = content,
+        Description = content,
+        Icon = icon,
+        Image = icon,
+        Duration = tonumber(options.Duration) or 3,
+    }
+    local modernAttempt = function()
+        return darkyWindow:Notify(payload)
+    end
+    local legacyAttempt = function()
+        return DarkyX:Notify(payload)
+    end
+    local attempts = DARKYX_LEGACY_API
+        and {legacyAttempt, modernAttempt}
+        or {modernAttempt, legacyAttempt}
+    local ok, result = runUiAttempts("notification", attempts)
+    if ok then return result end
+    return nil
 end
 
 Window = {}
 function Window:AddTab(title)
-    local tab = darkyWindow:CreateTab({
-        Title = tostring(title or "Tab"),
-        Icon = DARKYX_TAB_ICON,
-    })
-    local controls = createDarkyXControls(tab)
-
-    function controls:AddLeftGroupbox(sectionTitle)
-        tab:CreateSection({
-            Title = tostring(sectionTitle or "Section"),
-            Icon = DARKYX_SECTION_ICON,
-            Draggable = true,
-            Scale = "0.70",
-        })
-        return createDarkyXControls(tab)
-    end
-
-    return controls
+    return createDarkyXControls(createDarkyXTab(title, DARKYX_TAB_ICON))
 end
 
 wait(1)
@@ -2894,7 +3136,7 @@ wait(0)
 
 Webhook = Window:AddTab("Report And Ideas")
 
-ReportIdeas = Webhook:AddLeftGroupbox("Report And Ideas")
+ReportIdeas = Webhook:AddSection("Report And Ideas")
 
 -- Khai báo các biến và dịch vụ cần thiết
 local player = game.Players.LocalPlayer
@@ -3026,7 +3268,7 @@ ReportIdeas:AddButton({
 
 ShopBuy = Window:AddTab("Shop")
 
-MiscShopBuy = ShopBuy:AddLeftGroupbox("Misc Shop")
+MiscShopBuy = ShopBuy:AddSection("Misc Shop")
 
 code = {
     "LIGHTNINGABUSE",
@@ -3162,7 +3404,7 @@ MiscShopBuy:AddButton({
     end
 })
 
-FightingShop = ShopBuy:AddLeftGroupbox("Fighting Shop")
+FightingShop = ShopBuy:AddSection("Fighting Shop")
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CommF_ = ReplicatedStorage.Remotes.CommF_
@@ -3306,7 +3548,7 @@ FightingShop:AddToggle("SanguineArt", {
     end
 })
 
-HakiShop = ShopBuy:AddLeftGroupbox("Ability Shop")
+HakiShop = ShopBuy:AddSection("Ability Shop")
 
 HakiShop:AddButton({
     Title = "Skyjump [ $10,000 Beli ]",
@@ -3338,7 +3580,7 @@ HakiShop:AddButton({
 
 StatSer = Window:AddTab("Status And Server")
 
-Status = StatSer:AddLeftGroupbox("Status")
+Status = StatSer:AddSection("Status")
 
 Time = Status:AddLabel("Time Zone: ")
 
@@ -3580,7 +3822,7 @@ spawn(function()
     end
 end)
 
-Server = StatSer:AddLeftGroupbox("Server")
+Server = StatSer:AddSection("Server")
 
 JobInput = Server:AddInput("Input", {
     Title = "Input Your JobID Here",
@@ -3778,7 +4020,7 @@ Server:AddButton({
 
 LocalPlayer = Window:AddTab("LocalPlayer")
 
-Player = LocalPlayer:AddLeftGroupbox("Local Player")
+Player = LocalPlayer:AddSection("Local Player")
 
 Player:AddButton({
     Title = "Open Devil Fruit Shop",
@@ -4040,7 +4282,7 @@ Player:AddToggle("TeleportToggle", {
 
 Settings = Window:AddTab("Setting Farm")
 
-SetAutoFarm = Settings:AddLeftGroupbox("Setting Farm")
+SetAutoFarm = Settings:AddSection("Setting Farm")
 
 SetAutoFarm:AddDropdown("SelectWeapon", {
     Title = "Select Weapon",
@@ -4210,7 +4452,7 @@ SetAutoFarm:AddToggle("SpinPosition", {
 
 SkillsHold = Window:AddTab("Hold and Select Skill")
 
-Skills = SkillsHold:AddLeftGroupbox("Select Skills")
+Skills = SkillsHold:AddSection("Select Skills")
 
 Skills:AddDropdown("MeleeSkills", {
     Title = "Select Skill Melee",
@@ -4252,7 +4494,7 @@ Skills:AddDropdown("FruitsSkills", {
     end
 })
 
-HoldSkills = SkillsHold:AddLeftGroupbox("Hold Skills")
+HoldSkills = SkillsHold:AddSection("Hold Skills")
 
 -- Slider cho % máu
 KillAtSlider = HoldSkills:AddSlider({
@@ -4306,7 +4548,7 @@ HoldSkillCSlider = HoldSkills:AddSlider({
 
 AutoModeFarm = Window:AddTab("Farming")
 
-SelectMethodFarm = AutoModeFarm:AddLeftGroupbox("Setting Farm")
+SelectMethodFarm = AutoModeFarm:AddSection("Setting Farm")
 
 SelectMethodFarm:AddDropdown("SelectMethodFarm", {
     Title = "Select Method Farm",
@@ -4752,7 +4994,7 @@ spawn(function()
     end
 end)
 
-MeterialFarm = AutoModeFarm:AddLeftGroupbox("Mastery Farm")
+MeterialFarm = AutoModeFarm:AddSection("Mastery Farm")
 
 MeterialFarm:AddDropdown("SelectMethodFarm", {
     Title = "Select Method Farm Mastery",
@@ -4877,7 +5119,7 @@ spawn(function()
     end
 end)
 
-MeterialFarm = AutoModeFarm:AddLeftGroupbox("Farming Meterial")
+MeterialFarm = AutoModeFarm:AddSection("Farming Meterial")
 
 if World1 then MaterialList = {"Leather + Scrap Metal", "Angel Wings", "Magma Ore", "Fish Tail"}
 elseif World2 then MaterialList = {"Leather + Scrap Metal", "Radioactive Material", "Ectoplasm", "Mystic Droplet", "Magma Ore", "Vampire Fang"}
@@ -4956,7 +5198,7 @@ end)
 
 Stack = Window:AddTab("Stack Farming")
 
-WorldGet = Stack:AddLeftGroupbox("Auto World")
+WorldGet = Stack:AddSection("Auto World")
 
 WorldGet:AddToggle("World2AutoGet", {
     Title = "Auto New World",
@@ -5107,7 +5349,7 @@ spawn(function()
   end
 end)
 
-DevilFarm = Stack:AddLeftGroupbox("Devil Fruit")
+DevilFarm = Stack:AddSection("Devil Fruit")
 
 -- Toggle thứ nhất
 DevilFarm:AddToggle("DevilFarmNormal", {
@@ -5170,7 +5412,7 @@ spawn(function()
     end
 end)
 
-EventRaid = Stack:AddLeftGroupbox("Event Game")
+EventRaid = Stack:AddSection("Event Game")
 
 EventRaid:AddToggle("FactoryRaidFarm", {
     Title = "Auto Factory",
@@ -5236,7 +5478,7 @@ spawn(function()
   end
 end)
 
-RipIndraBoss = Stack:AddLeftGroupbox("Boss Rip Indra")
+RipIndraBoss = Stack:AddSection("Boss Rip Indra")
 
 -- Toggle Auto Elite Hunter
 RipIndraBoss:AddToggle("EliteHunterFarm", {
@@ -5435,7 +5677,7 @@ spawn(function()
   end
 end)
 
-SoulReaperBoss = Stack:AddLeftGroupbox("Boss Soul Reaper")
+SoulReaperBoss = Stack:AddSection("Boss Soul Reaper")
 
 SoulReaperBoss:AddToggle("SoulReaperNormal", {
     Title = "Auto Soul Reaper",
@@ -5502,7 +5744,7 @@ spawn(function()
     end
 end)
 
-DoughKingBoss = Stack:AddLeftGroupbox("Boss Dough King")
+DoughKingBoss = Stack:AddSection("Boss Dough King")
 
 DoughKingBoss:AddToggle("DoughKingNormal", {
     Title = "Auto Dough King",
@@ -5557,7 +5799,7 @@ spawn(function()
     end
 end)
 
-DarkbeardBoss = Stack:AddLeftGroupbox("Boss Darkbeard")
+DarkbeardBoss = Stack:AddSection("Boss Darkbeard")
 DarkbeardBoss:AddToggle("DarkBreadNormal", {
     Title = "Auto Darkbread",
     Default = false,
@@ -5616,7 +5858,7 @@ end)
 
 Other = Window:AddTab("Farming Other")
 
-Fishing = Other:AddLeftGroupbox("Fishing")
+Fishing = Other:AddSection("Fishing")
 
 -- 🔧 Auto ensure rod & bait
 local function EnsureRodAndBait()
@@ -5908,7 +6150,7 @@ task.spawn(function()
     end
 end)
 
-DragonQuest = Other:AddLeftGroupbox("Quest Dragon")
+DragonQuest = Other:AddSection("Quest Dragon")
 
 DragonQuest:AddToggle("DojoTrainer", {
     Title = "Auto Dojo Trainer",
@@ -6067,7 +6309,7 @@ spawn(function()
   end
 end)
 
-MobAttackAlls = Other:AddLeftGroupbox("Attack All Mobs")
+MobAttackAlls = Other:AddSection("Attack All Mobs")
 
 MobAttackAlls:AddToggle("AllMobAndBoss", {
     Title = "Auto Attack All Mobs and Boss",
@@ -6093,7 +6335,7 @@ spawn(function()
   end
 end)
 
-BerryFarm = Other:AddLeftGroupbox("Berry")
+BerryFarm = Other:AddSection("Berry")
 
 BerryFarm:AddToggle("BerryFarmAuto", {
     Title = "Auto Collect Berry",
@@ -6190,7 +6432,7 @@ spawn(function()
     end
 end)
 
-ChestFarm = Other:AddLeftGroupbox("Farm Chest")
+ChestFarm = Other:AddSection("Farm Chest")
 
 ChestFarm:AddToggle("ChestNormalAuto", {
     Title = "Auto Chest",
@@ -6269,7 +6511,7 @@ spawn(function()
     end
 end)
 
-FullRaidLaw = Other:AddLeftGroupbox("Raid Law")
+FullRaidLaw = Other:AddSection("Raid Law")
 
 FullRaidLaw:AddToggle("FullRaidLawOk", {
     Title = "Auto Buy Chip and Attack Law",
@@ -6307,7 +6549,7 @@ spawn(function()
     end
 end)
 
-ObservationFarm = Other:AddLeftGroupbox("Farm Observation")
+ObservationFarm = Other:AddSection("Farm Observation")
 
 ObservationFarm:AddToggle("UpgradeObserV2", {
     Title = "Auto UP Observation V2",
@@ -6494,7 +6736,7 @@ spawn(function()
   end
 end)
 
-BossAuto = Other:AddLeftGroupbox("Auto Boss")
+BossAuto = Other:AddSection("Auto Boss")
 
 if World1 then
     tableBoss = {
@@ -6612,7 +6854,7 @@ end)
 
 FRD = Window:AddTab("Fruit and Raid, Dungeon")
 
-DevilFruitOpen = FRD:AddLeftGroupbox("Devil Fruit")
+DevilFruitOpen = FRD:AddSection("Devil Fruit")
 
 DevilFruitOpen:AddToggle("RamdomFruits", {
     Title = "Random Devil Fruit",
@@ -6718,7 +6960,7 @@ spawn(function()
         end)
     end)
     
-RaidOpen = FRD:AddLeftGroupbox("Raids")
+RaidOpen = FRD:AddSection("Raids")
 
 RaidOpen:AddDropdown("SelectRaidsChip", {
     Title = "Select Raid",
@@ -6834,7 +7076,7 @@ spawn(function()
 end)
 
 -- Dungeon Farming System
-local DungeonOpen = FRD:AddLeftGroupbox("Dungeon")
+local DungeonOpen = FRD:AddSection("Dungeon")
 
 -- Các cài đặt
 local AttackDistance = 35
@@ -7367,7 +7609,7 @@ SetupDeathListener()
 
 Sea = Window:AddTab("Sea Event")
 
-SettingsSea = Sea:AddLeftGroupbox("Setting")
+SettingsSea = Sea:AddSection("Setting")
 
 SettingsSea:AddDropdown("SelectZone", {
     Title = "Select Zone",
@@ -7724,7 +7966,7 @@ spawn(function()
 end)
 spawn(function()while wait(Sec)do pcall(function()for a,b in pairs(workspace.Boats:GetChildren())do for c,d in pairs(workspace.Boats[b.Name]:GetDescendants())do if d:IsA("BasePart")then if _G.SailBoats or _G.Prehis_Find or _G.FindMirage or _G.SailBoat_Hydra or _G.AutofindKitIs then d.CanCollide=false else d.CanCollide=true end end end end end)end end)
 
-KitsuneSection = Sea:AddLeftGroupbox("Kitsune Event")
+KitsuneSection = Sea:AddSection("Kitsune Event")
 
 KitsuneSection:AddToggle("KitsuneToggle", {
     Title = "Teleport To Kitsune Island",
@@ -7778,7 +8020,7 @@ KitsuneSection:AddButton({
 })
 
 -- Leviathan Event Section
-LeviathanSection = Sea:AddLeftGroupbox("Leviathan Event")
+LeviathanSection = Sea:AddSection("Leviathan Event")
 
 LeviathanSection:AddButton({
     Title = "Buy Spy",
@@ -7917,7 +8159,7 @@ end)
 Race = Window:AddTab("Upgrade Race")
 
 -- ========== RACE DRACO ==========
-DracoRace = Race:AddLeftGroupbox("Race Draco")
+DracoRace = Race:AddSection("Race Draco")
 
 DracoRace:AddToggle("DracoAutoRace", {
     Title = "Auto Upgrade Race V2-V3 Draco",
@@ -8047,7 +8289,7 @@ spawn(function()
 end)
 
 -- ========== RACE NORMAL ==========
-RaceNormalUpgrade = Race:AddLeftGroupbox("Race Normal")
+RaceNormalUpgrade = Race:AddSection("Race Normal")
 
 RaceNormalUpgrade:AddToggle("UpgradeRaceV2Toggle", {
     Title = "Auto Upgrade Race V2",
@@ -8124,7 +8366,7 @@ spawn(function()
 end)
 
 -- ========== RACE V4 ==========
-TrialRace = Race:AddLeftGroupbox("Race V4")
+TrialRace = Race:AddSection("Race V4")
 
 TrialRace:AddToggle("CyborgToggle", {
     Title = "Auto Get Cyborg",
@@ -8529,7 +8771,7 @@ end)
 
 Items = Window:AddTab("Get and Upgrade Items")
 
-GetItems = Items:AddLeftGroupbox("Get Items")
+GetItems = Items:AddSection("Get Items")
 
 GetItems:AddToggle("TradeBone", {
     Title = "Auto Trade Bone",
@@ -9366,7 +9608,7 @@ spawn(function()
   end
 end)
 
-MasteryWeaponMS = Items:AddLeftGroupbox("Mastery Weapon")
+MasteryWeaponMS = Items:AddSection("Mastery Weapon")
 
 MasteryWeaponMS:AddToggle("MeleeFarmMas", {
     Title = "Auto Farm Mastery 600 Melees",
@@ -9458,7 +9700,7 @@ end)
 
 Volcano = Window:AddTab("Volcano Event")
 
-VolcanoFarm = Volcano:AddLeftGroupbox("Farming Volcano")
+VolcanoFarm = Volcano:AddSection("Farming Volcano")
 
 VolcanoFarm:AddToggle("CraftVolcanicMagnet", {
     Title = "Auto Crafting Volcanic Magnet",
@@ -9652,7 +9894,7 @@ spawn(function()
   end
 end)
 
-FullyVolcano = Volcano:AddLeftGroupbox("Fully Volcano")
+FullyVolcano = Volcano:AddSection("Fully Volcano")
 
 FullyVolcano:AddToggle("IgnoreCraftVolcanicMagnet", {
     Title = "Ignore Craft Volcanic Magnet [ Fully ]",
@@ -9694,7 +9936,7 @@ end)
 
 HasESP = Window:AddTab("ESP")
 
-ESP = HasESP:AddLeftGroupbox("ESP")
+ESP = HasESP:AddSection("ESP")
 
 -- Khai báo các biến cần thiết
 local Players = game:GetService("Players")
@@ -10027,7 +10269,7 @@ ESP:AddToggle("ESPPlayer", {
 
 PlayerPVP = Window:AddTab("PVP")
 
-PVP = PlayerPVP:AddLeftGroupbox("PVP")
+PVP = PlayerPVP:AddSection("PVP")
 
 Playerslist = {}
 for i, player in ipairs(Players:GetPlayers()) do
@@ -10147,7 +10389,7 @@ task.spawn(function()
     end
 end)
 
-MiscPVP = PlayerPVP:AddLeftGroupbox("MISC PVP")
+MiscPVP = PlayerPVP:AddSection("MISC PVP")
 
 SpeedSlider = MiscPVP:AddSlider({
     Title = "Imput WalkSpeed",
