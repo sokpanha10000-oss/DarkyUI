@@ -17,7 +17,7 @@ local CommF_Remote = Remotes:WaitForChild("CommF_")
 -- PLAYER
 local Player = Players.LocalPlayer
 local PlayerGui = Player:WaitForChild("PlayerGui", 5)
-local MainGui = PlayerGui:WaitForChild("Main", 5)
+local MainGui = PlayerGui:WaitForChild("Main")
 
 -- CHARACTER
 local Character = Player.Character or Player.CharacterAdded:Wait()
@@ -38,7 +38,15 @@ local reportWebhookURL = "https://discord.com/api/webhooks/1470044798202151134/4
 local ideasWebhookURL = "https://discord.com/api/webhooks/1470044798202151134/4uLMDv_QBhalhhsoo9XnNEBmnLKOQ4xIhJgO91tTBBDwkZ3_eyojKnHWrmtfLoLHH1sZ"
 
 -- EXPLOIT
-local executor = getexecutorname() or identifyexecutor()
+local executor = nil
+if type(getexecutorname) == "function" then
+    local ok, result = pcall(getexecutorname)
+    if ok then executor = result end
+end
+if not executor and type(identifyexecutor) == "function" then
+    local ok, result = pcall(identifyexecutor)
+    if ok then executor = result end
+end
 if executor then
     if
             string.find(executor, "Bunni") or 
@@ -76,22 +84,44 @@ end
 
 -- WORLD CHECK
 local placeId = game.PlaceId
-local World1 = game.PlaceId == 2753915549 or 85211729168715 or 73902483975735
-local World2 = game.PlaceId == 4442272183 or 79091703265657 or 73902483975735
-local World3 = game.PlaceId == 7449423635 or 85211729168715 or 73902483975735
+local World1 = game.PlaceId == 2753915549 or game.PlaceId == 85211729168715 or game.PlaceId == 73902483975735
+local World2 = game.PlaceId == 4442272183 or game.PlaceId == 79091703265657 or game.PlaceId == 73902483975735
+local World3 = game.PlaceId == 7449423635 or game.PlaceId == 85211729168715 or game.PlaceId == 73902483975735
 local Sea = World1 or World2 or World3
 
 -- GAME REFERENCES (giữ từ script cũ)
-local Enemies = Workspace.Enemies
+local Enemies = Workspace:WaitForChild("Enemies")
 local replicated = ReplicatedStorage
 local plr = Player
 local Root = HumanoidRootPart
-local Lv = Player.Data.Level.Value
+local PlayerData = Player:WaitForChild("Data")
+local LevelValue = PlayerData:WaitForChild("Level")
+local Lv = LevelValue.Value
 local TeamSelf = Player.Team
-local Energy = Character.Energy.Value
+local EnergyValue = Character:WaitForChild("Energy", 10)
+local Energy = EnergyValue and EnergyValue.Value or 0
 local vim1 = VirtualInputManager
 local vim2 = VirtualUser
 local TW = TweenService
+
+local function sendKey(inputManager, isPressed, keyName)
+    if not inputManager then
+        warn("Key input skipped: input manager is nil")
+        return false
+    end
+    local keyCode = Enum.KeyCode[keyName]
+    if not keyCode then
+        warn("Key input skipped: unknown Enum.KeyCode " .. tostring(keyName))
+        return false
+    end
+    local ok, err = pcall(function()
+        inputManager:SendKeyEvent(isPressed, keyCode, false, game)
+    end)
+    if not ok then
+        warn("Key input failed for " .. tostring(keyName) .. ": " .. tostring(err))
+    end
+    return ok
+end
 
 -- NOTIFICATION CONFIG
 local lastNotificationTime = 0
@@ -619,53 +649,53 @@ Useskills = function(weapon, skill)
     if weapon == "Melee" then
         weaponSc("Melee")
         if skill == "Z" then
-            vim1:SendKeyEvent(true, "Z", false, game)
-            vim1:SendKeyEvent(false, "Z", false, game)
+            sendKey(vim1, true, "Z")
+            sendKey(vim1, false, "Z")
         elseif skill == "X" then
-            vim1:SendKeyEvent(true, "X", false, game)
-            vim1:SendKeyEvent(false, "X", false, game)
+            sendKey(vim1, true, "X")
+            sendKey(vim1, false, "X")
         elseif skill == "C" then
-            vim1:SendKeyEvent(true, "C", false, game)
-            vim1:SendKeyEvent(false, "C", false, game)
+            sendKey(vim1, true, "C")
+            sendKey(vim1, false, "C")
         end
     elseif weapon == "Sword" then
         weaponSc("Sword")
         if skill == "Z" then
-            vim1:SendKeyEvent(true, "Z", false, game)
-            vim1:SendKeyEvent(false, "Z", false, game)
+            sendKey(vim1, true, "Z")
+            sendKey(vim1, false, "Z")
         elseif skill == "X" then
-            vim1:SendKeyEvent(true, "X", false, game)
-            vim1:SendKeyEvent(false, "X", false, game)
+            sendKey(vim1, true, "X")
+            sendKey(vim1, false, "X")
         end
     elseif weapon == "Blox Fruit" then
         weaponSc("Blox Fruit")
         if skill == "Z" then
-            vim1:SendKeyEvent(true, "Z", false, game)
-            vim1:SendKeyEvent(false, "Z", false, game)
+            sendKey(vim1, true, "Z")
+            sendKey(vim1, false, "Z")
         elseif skill == "X" then
-            vim1:SendKeyEvent(true, "X", false, game)
-            vim1:SendKeyEvent(false, "X", false, game)
+            sendKey(vim1, true, "X")
+            sendKey(vim1, false, "X")
         elseif skill == "C" then
-            vim1:SendKeyEvent(true, "C", false, game)
-            vim1:SendKeyEvent(false, "C", false, game)        
+            sendKey(vim1, true, "C")
+            sendKey(vim1, false, "C")        
         elseif skill == "V" then
-            vim1:SendKeyEvent(true, "V", false, game)
-            vim1:SendKeyEvent(false, "V", false, game)
+            sendKey(vim1, true, "V")
+            sendKey(vim1, false, "V")
         end
     elseif weapon == "Gun" then
         weaponSc("Gun")
         if skill == "Z" then
-            vim1:SendKeyEvent(true, "Z", false, game)
-            vim1:SendKeyEvent(false, "Z", false, game)
+            sendKey(vim1, true, "Z")
+            sendKey(vim1, false, "Z")
         elseif skill == "X" then
-            vim1:SendKeyEvent(true, "X", false, game)
-            vim1:SendKeyEvent(false, "X", false, game)
+            sendKey(vim1, true, "X")
+            sendKey(vim1, false, "X")
         end
     end
     
     if weapon == "nil" and skill == "Y" then
-        vim1:SendKeyEvent(true, "Y", false, game)
-        vim1:SendKeyEvent(false, "Y", false, game)
+        sendKey(vim1, true, "Y")
+        sendKey(vim1, false, "Y")
     end
 end
 
@@ -2692,112 +2722,74 @@ local function ShootLoop()
 end
 
 local DarkyXSource = "https://github.com/sokpanha10000-oss/DarkyUI/releases/latest/download/DarkyX.lua"
-local DarkyXLoader, DarkyXLoadError = loadstring(game:HttpGet(DarkyXSource))
-assert(type(DarkyXLoader) == "function", "DarkyX loader could not be downloaded: " .. tostring(DarkyXLoadError))
-local DarkyX = DarkyXLoader()
-assert(type(DarkyX) == "table" and type(DarkyX.CreateWindow) == "function", "DarkyX did not return a valid UI library")
+assert(type(loadstring) == "function", "This environment does not support loadstring")
+local sourceOk, sourceOrError = pcall(function()
+    return game:HttpGet(DarkyXSource)
+end)
+assert(sourceOk and type(sourceOrError) == "string" and #sourceOrError > 0,
+    "Could not download DarkyX: " .. tostring(sourceOrError))
+local DarkyXLoader, compileError = loadstring(sourceOrError)
+assert(type(DarkyXLoader) == "function", "Could not compile DarkyX: " .. tostring(compileError))
+local libraryOk, DarkyX = pcall(DarkyXLoader)
+assert(libraryOk and type(DarkyX) == "table" and type(DarkyX.CreateWindow) == "function",
+    "DarkyX did not return a valid library: " .. tostring(DarkyX))
 
 local DARKYX_TAB_ICON = 93364949241311
 local DARKYX_SECTION_ICON = 93364949241311
-local DARKYX_THEME_MAP = type(DarkyX.Theme) == "table" and DarkyX.Theme or nil
-local DARKYX_LEGACY_API = DARKYX_THEME_MAP ~= nil
-    and DARKYX_THEME_MAP.Default ~= nil
-    and DARKYX_THEME_MAP.cobalt == nil
-    and DARKYX_THEME_MAP.Cobalt == nil
-
-local function resolveDarkyXTheme(preferred)
-    if not DARKYX_THEME_MAP then
-        return preferred
-    end
-    if DARKYX_THEME_MAP[preferred] ~= nil then
-        return preferred
-    end
-    if DARKYX_THEME_MAP.Cobalt ~= nil then
-        return "Cobalt"
-    end
-    if DARKYX_THEME_MAP.DarkBlue ~= nil then
-        return "DarkBlue"
-    end
-    return "Default"
-end
 
 local darkyWindowSettings = {
     Title = "DarkyX Hub",
-    Name = "DarkyX Hub",
     Subtitle = "BY D_GAMING",
-    LoadingSubtitle = "BY D_GAMING",
     Image = 122219837651457,
-    Icon = 122219837651457,
     Background = 130246636539714,
-    LoadingTitle = DARKYX_LEGACY_API and "DarkyX Hub" or true,
+    LoadingTitle = true,
     SidebarLayout = true,
     Size = UDim2.fromOffset(550, 340),
     UIScale = "0.85",
-    UIscale = "0.85",
     Animation = true,
     Effect = true,
-    Theme = resolveDarkyXTheme("cobalt"),
+    Theme = "cobalt",
 }
 
-local darkyWindowOk, darkyWindow = pcall(function()
+local windowOk, windowOrError = pcall(function()
     return DarkyX:CreateWindow(darkyWindowSettings)
 end)
-assert(darkyWindowOk and type(darkyWindow) == "table" and type(darkyWindow.CreateTab) == "function",
-    "DarkyX CreateWindow failed or returned an incompatible window: " .. tostring(darkyWindow))
+assert(windowOk and type(windowOrError) == "table",
+    "DarkyX CreateWindow failed: " .. tostring(windowOrError))
+local darkyWindow = windowOrError
+assert(type(darkyWindow.CreateTab) == "function", "DarkyX window is missing CreateTab")
 
-local function runUiAttempts(label, attempts)
-    local lastError = "unknown error"
-    for _, attempt in ipairs(attempts) do
-        local ok, result = pcall(attempt)
-        if ok then
-            return true, result
-        end
-        lastError = result
+local function safeCallback(label, callback)
+    if type(callback) ~= "function" then
+        return function() end
     end
-    warn("DarkyX UI failed to create " .. tostring(label) .. ": " .. tostring(lastError))
-    return false, nil
+    return function(...)
+        local ok, err = pcall(callback, ...)
+        if not ok then
+            warn("DarkyX callback '" .. tostring(label) .. "' failed: " .. tostring(err))
+        end
+    end
 end
 
-local function createDualApiElement(tab, methodName, modernSettings, legacySettings)
-    local method = tab and tab[methodName]
-    if type(method) ~= "function" then
-        warn("DarkyX UI is missing " .. tostring(methodName))
+local function tryCreateElement(label, creator)
+    local ok, result = pcall(creator)
+    if not ok then
+        warn("DarkyX could not create " .. tostring(label) .. ": " .. tostring(result))
         return nil
     end
-
-    local modernAttempt = function()
-        return method(tab, modernSettings)
-    end
-    local legacyAttempt = function()
-        return method(tab, legacySettings)
-    end
-    local attempts = DARKYX_LEGACY_API
-        and {legacyAttempt, modernAttempt}
-        or {modernAttempt, legacyAttempt}
-
-    local ok, result = runUiAttempts(methodName, attempts)
-    if ok then
-        return result
-    end
-    return nil
+    return result
 end
 
 local function createDarkyXTab(title, icon)
-    local modernAttempt = function()
+    local tabTitle = tostring(title or "Tab")
+    local tab = tryCreateElement("tab '" .. tabTitle .. "'", function()
         return darkyWindow:CreateTab({
-            Title = tostring(title or "Tab"),
+            Title = tabTitle,
             Icon = icon or DARKYX_TAB_ICON,
         })
-    end
-    local legacyAttempt = function()
-        return darkyWindow:CreateTab(tostring(title or "Tab"), icon or DARKYX_TAB_ICON)
-    end
-    local attempts = DARKYX_LEGACY_API
-        and {legacyAttempt, modernAttempt}
-        or {modernAttempt, legacyAttempt}
-    local ok, tab = runUiAttempts("tab '" .. tostring(title) .. "'", attempts)
-    if not ok or type(tab) ~= "table" then
-        error("DarkyX could not create tab '" .. tostring(title) .. "'")
+    end)
+    if tab == nil then
+        error("DarkyX returned nil for tab '" .. tabTitle .. "'")
     end
     return tab
 end
@@ -2808,18 +2800,13 @@ local function createDarkyXControls(tab)
     function controls:AddButton(options)
         options = type(options) == "table" and options or {Title = tostring(options or "Button")}
         local title = tostring(options.Title or options.Name or "Button")
-        local callback = type(options.Callback) == "function" and options.Callback or function() end
-        return createDualApiElement(tab, "CreateButton", {
-            Title = title,
-            Description = tostring(options.Description or ""),
-            Enabled = options.Enabled ~= false,
-            Callback = callback,
-        }, {
-            Name = title,
-            Description = tostring(options.Description or ""),
-            Ext = true,
-            Callback = callback,
-        })
+        return tryCreateElement("button '" .. title .. "'", function()
+            return tab:CreateButton({
+                Title = title,
+                Description = tostring(options.Description or ""),
+                Callback = safeCallback(title, options.Callback),
+            })
+        end)
     end
 
     function controls:AddToggle(flag, options)
@@ -2829,25 +2816,18 @@ local function createDarkyXControls(tab)
         end
         options = type(options) == "table" and options or {}
         local title = tostring(options.Title or options.Name or flag or "Toggle")
-        local current = options.Value
-        if current == nil then current = options.Default end
-        current = current == true
+        local value = options.Value
+        if value == nil then value = options.Default end
+        if value == nil then value = false end
         local elementFlag = tostring(options.Flag or flag or title)
-        local callback = type(options.Callback) == "function" and options.Callback or function() end
-
-        return createDualApiElement(tab, "CreateToggle", {
-            Title = title,
-            Flag = elementFlag,
-            Value = current,
-            Enabled = options.Enabled ~= false,
-            Callback = callback,
-        }, {
-            Name = title,
-            Flag = elementFlag,
-            CurrentValue = current,
-            Ext = true,
-            Callback = callback,
-        })
+        return tryCreateElement("toggle '" .. title .. "'", function()
+            return tab:CreateToggle({
+                Title = title,
+                Flag = elementFlag,
+                Value = value == true,
+                Callback = safeCallback(title, options.Callback),
+            })
+        end)
     end
 
     function controls:AddDropdown(flag, options)
@@ -2866,16 +2846,15 @@ local function createDarkyXControls(tab)
         local value = options.Value
         if value == nil then value = options.Default end
         if multi then
-            if value == nil then
-                value = {}
-            elseif type(value) ~= "table" then
-                value = {value}
+            if type(value) ~= "table" then
+                value = value == nil and {} or {value}
             end
-            for index, selected in ipairs(value) do
-                if type(selected) == "number" then
-                    value[index] = choices[selected] or selected
-                end
+            local selected = {}
+            for _, item in ipairs(value) do
+                if type(item) == "number" then item = choices[item] or item end
+                if item ~= nil then table.insert(selected, item) end
             end
+            value = selected
         else
             if type(value) == "table" then value = value[1] end
             if type(value) == "number" then value = choices[value] or value end
@@ -2883,7 +2862,8 @@ local function createDarkyXControls(tab)
             if value == nil then value = "" end
         end
 
-        local callback = type(options.Callback) == "function" and options.Callback or function() end
+        local elementFlag = tostring(options.Flag or flag or title)
+        local callback = safeCallback(title, options.Callback)
         local function dropdownCallback(selected)
             if multi then
                 if type(selected) ~= "table" then
@@ -2896,33 +2876,16 @@ local function createDarkyXControls(tab)
             end
         end
 
-        local legacyCurrentOption
-        if multi then
-            legacyCurrentOption = value
-        elseif value == "" then
-            legacyCurrentOption = {}
-        else
-            legacyCurrentOption = {value}
-        end
-
-        local elementFlag = tostring(options.Flag or flag or title)
-        return createDualApiElement(tab, "CreateDropdown", {
-            Title = title,
-            Flag = elementFlag,
-            MultiSelect = multi,
-            Options = choices,
-            Value = value,
-            Enabled = options.Enabled ~= false,
-            Callback = dropdownCallback,
-        }, {
-            Name = title,
-            Flag = elementFlag,
-            MultipleOptions = multi,
-            Options = choices,
-            CurrentOption = legacyCurrentOption,
-            Ext = true,
-            Callback = dropdownCallback,
-        })
+        return tryCreateElement("dropdown '" .. title .. "'", function()
+            return tab:CreateDropdown({
+                Title = title,
+                Flag = elementFlag,
+                MultiSelect = multi,
+                Options = choices,
+                Value = value,
+                Callback = dropdownCallback,
+            })
+        end)
     end
 
     function controls:AddSlider(id, options)
@@ -2940,41 +2903,29 @@ local function createDarkyXControls(tab)
         local maximum = tonumber(range[2]) or 100
         if maximum < minimum then minimum, maximum = maximum, minimum end
         if maximum == minimum then maximum = minimum + 1 end
-        range = {minimum, maximum}
-
         local increment = tonumber(options.Increment)
         if increment == nil then
             local rounding = tonumber(options.Rounding)
             increment = rounding ~= nil and (10 ^ (-rounding)) or 1
         end
         if increment <= 0 then increment = 1 end
-
         local value = options.Value
         if value == nil then value = options.Default end
         value = tonumber(value) or minimum
         value = math.clamp(value, minimum, maximum)
         local elementFlag = tostring(options.Flag or id or title)
-        local callback = type(options.Callback) == "function" and options.Callback or function() end
 
-        return createDualApiElement(tab, "CreateSlider", {
-            Title = title,
-            Flag = elementFlag,
-            Range = range,
-            Increment = increment,
-            Value = value,
-            Suffix = tostring(options.Suffix or ""),
-            Enabled = options.Enabled ~= false,
-            Callback = callback,
-        }, {
-            Name = title,
-            Flag = elementFlag,
-            Range = range,
-            Increment = increment,
-            CurrentValue = value,
-            Suffix = tostring(options.Suffix or ""),
-            Ext = true,
-            Callback = callback,
-        })
+        return tryCreateElement("slider '" .. title .. "'", function()
+            return tab:CreateSlider({
+                Title = title,
+                Flag = elementFlag,
+                Range = {minimum, maximum},
+                Increment = increment,
+                Value = value,
+                Suffix = tostring(options.Suffix or ""),
+                Callback = safeCallback(title, options.Callback),
+            })
+        end)
     end
 
     function controls:AddInput(flag, options)
@@ -2986,79 +2937,46 @@ local function createDarkyXControls(tab)
         local title = tostring(options.Title or options.Name or flag or "Input")
         local value = options.Value
         if value == nil then value = options.Default end
-        if value == nil then value = "" end
-        value = tostring(value)
+        if value == nil then value = options.Numeric == true and "0" or "" end
         local elementFlag = tostring(options.Flag or flag or title)
-        local callback = type(options.Callback) == "function" and options.Callback or function() end
-
-        return createDualApiElement(tab, "CreateInput", {
-            Title = title,
-            Flag = elementFlag,
-            Numeric = options.Numeric == true,
-            Value = value,
-            Placeholder = tostring(options.Placeholder or options.PlaceholderText or "Enter a value"),
-            Enabled = options.Enabled ~= false,
-            Callback = callback,
-        }, {
-            Name = title,
-            Flag = elementFlag,
-            CurrentValue = value,
-            PlaceholderText = tostring(options.Placeholder or options.PlaceholderText or "Enter a value"),
-            RemoveTextAfterFocusLost = options.RemoveTextAfterFocusLost == true,
-            Ext = true,
-            Callback = callback,
-        })
+        return tryCreateElement("input '" .. title .. "'", function()
+            return tab:CreateInput({
+                Title = title,
+                Flag = elementFlag,
+                Numeric = options.Numeric == true,
+                Value = tostring(value),
+                Placeholder = tostring(options.Placeholder or options.PlaceholderText or "Enter a value"),
+                Callback = safeCallback(title, options.Callback),
+            })
+        end)
     end
 
     function controls:AddLabel(text)
         local initialText = tostring(text or "")
-        local label
-        local labelCreated = false
-        if tab and type(tab.CreateLabel) == "function" then
-            local ok, result = pcall(function()
-                return tab:CreateLabel(initialText)
+        local stat = tryCreateElement("stat label '" .. initialText .. "'", function()
+            assert(type(tab.CreateStat) == "function", "CreateStat is unavailable")
+            return tab:CreateStat({Title = initialText ~= "" and initialText or "Status", Value = ""})
+        end)
+        if not stat then
+            stat = tryCreateElement("label fallback '" .. initialText .. "'", function()
+                return tab:CreateButton({Title = initialText ~= "" and initialText or "Status", Callback = function() end})
             end)
-            if ok then
-                label = result
-                labelCreated = true
-            end
         end
-
-        if not labelCreated then
-            label = createDualApiElement(tab, "CreateStat", {
-                Title = initialText ~= "" and initialText or "Status",
-                Value = "",
-                Enabled = true,
-            }, {
-                Name = initialText ~= "" and initialText or "Status",
-                Value = "",
-                Ext = true,
-            })
-        end
-        if not label then
-            label = createDualApiElement(tab, "CreateButton", {
-                Title = initialText,
-                Enabled = false,
-                Callback = function() end,
-            }, {
-                Name = initialText,
-                Callback = function() end,
-                Ext = true,
-            })
-        end
-
+        local currentLabel = stat
         local function setLabel(newText)
-            if not label then return end
+            if not currentLabel then return end
             local value = tostring(newText or "")
-            pcall(function()
-                if type(label.Set) == "function" then
-                    label:Set(value)
-                elseif type(label.SetText) == "function" then
-                    label:SetText(value)
+            local ok, err = pcall(function()
+                if type(currentLabel.Set) == "function" then
+                    currentLabel:Set(value)
+                elseif type(currentLabel.SetText) == "function" then
+                    currentLabel:SetText(value)
+                elseif type(currentLabel.SetValue) == "function" then
+                    currentLabel:SetValue(value)
                 end
             end)
+            if not ok then warn("DarkyX label update failed: " .. tostring(err)) end
         end
-
         return {
             SetText = function(_, newText) setLabel(newText) end,
             Set = function(_, newText) setLabel(newText) end,
@@ -3067,24 +2985,16 @@ local function createDarkyXControls(tab)
 
     function controls:AddSection(sectionTitle)
         local title = tostring(sectionTitle or "Section")
-        local modernSettings = {
-            Title = title,
-            Icon = DARKYX_SECTION_ICON,
-            Draggable = true,
-            Scale = "0.70",
-        }
-        local ok = false
-        local attempts = {
-            function() return tab:CreateSection(modernSettings) end,
-            function() return tab:CreateSection(title) end,
-        }
-        if DARKYX_LEGACY_API then
-            attempts = {attempts[2], attempts[1]}
-        end
-        ok = runUiAttempts("section '" .. title .. "'", attempts)
-        if not ok then
-            warn("DarkyX could not create section '" .. title .. "'; controls will still be created on the tab")
-        end
+        tryCreateElement("section '" .. title .. "'", function()
+            assert(type(tab.CreateSection) == "function", "CreateSection is unavailable")
+            return tab:CreateSection({
+                Title = title,
+                Icon = DARKYX_SECTION_ICON,
+                Draggable = true,
+                Scale = "0.70",
+            })
+        end)
+        -- DarkyX's API attaches controls to the tab after creating a section.
         return createDarkyXControls(tab)
     end
 
@@ -3096,27 +3006,19 @@ function Library:Notify(options)
     options = type(options) == "table" and options or {}
     local title = tostring(options.Title or "Notification")
     local content = tostring(options.Content or options.Description or "")
-    local icon = options.Icon or options.Image or 122219837651457
-    local payload = {
-        Title = title,
-        Content = content,
-        Description = content,
-        Icon = icon,
-        Image = icon,
-        Duration = tonumber(options.Duration) or 3,
-    }
-    local modernAttempt = function()
-        return darkyWindow:Notify(payload)
+    local icon = options.Icon or options.Image or "house"
+    if type(darkyWindow.Notify) ~= "function" then
+        warn("DarkyX window does not provide Notify")
+        return nil
     end
-    local legacyAttempt = function()
-        return DarkyX:Notify(payload)
-    end
-    local attempts = DARKYX_LEGACY_API
-        and {legacyAttempt, modernAttempt}
-        or {modernAttempt, legacyAttempt}
-    local ok, result = runUiAttempts("notification", attempts)
-    if ok then return result end
-    return nil
+    return tryCreateElement("notification", function()
+        return darkyWindow:Notify({
+            Title = title,
+            Content = content,
+            Icon = icon,
+            Duration = tonumber(options.Duration) or 3,
+        })
+    end)
 end
 
 Window = {}
@@ -3128,7 +3030,8 @@ wait(1)
 
 Library:Notify({
     Title = "DarkyX Hub",
-    Description = "DarkyX interface loaded successfully.",
+    Content = "DarkyX interface loaded successfully.",
+    Icon = "house",
     Duration = 3,
 })
 
@@ -4426,9 +4329,9 @@ spawn(function()
                 and not character.RaceTransformed.Value
             then
                 local be = game:GetService("VirtualInputManager")
-                be:SendKeyEvent(true, "Y", false, game)
+                sendKey(be, true, "Y")
                 task.wait()
-                be:SendKeyEvent(false, "Y", false, game)
+                sendKey(be, false, "Y")
             end
         end
     end
@@ -8195,9 +8098,9 @@ spawn(function()
                                 local Magnited = (FlowerPos - playerRoot.Position).Magnitude
                                 
                                 if Magnited <= 100 then
-                                    vim1:SendKeyEvent(true, "E", false, game) 
+                                    sendKey(vim1, true, "E") 
                                     wait(1.5) 
-                                    vim1:SendKeyEvent(false, "E", false, game)
+                                    sendKey(vim1, false, "E")
                                 else
                                     _tp(CFrame.new(FlowerPos))
                                 end
@@ -8479,9 +8382,9 @@ TrialRace:AddToggle("TrainQuestToggle", {
 local function UseSkills(skillName, key)
     -- Logic sử dụng skill
     if key == "Y" then
-        vim1:SendKeyEvent(true, "Y", false, game)
+        sendKey(vim1, true, "Y")
         wait(0.1)
-        vim1:SendKeyEvent(false, "Y", false, game)
+        sendKey(vim1, false, "Y")
     end
 end
 
@@ -9765,9 +9668,9 @@ spawn(function()
             if workspace.Map.PrehistoricIsland.Core.ActivationPrompt:FindFirstChild("ProximityPrompt", true) then
               if plr:DistanceFromCharacter(workspace.Map.PrehistoricIsland.Core.ActivationPrompt.CFrame.Position) <= 150 then
                 fireproximityprompt(workspace.Map.PrehistoricIsland.Core.ActivationPrompt.ProximityPrompt, math.huge)
-                vim1:SendKeyEvent(true, "E", false, game) 
+                sendKey(vim1, true, "E") 
                 wait(1.5) 
-                vim1:SendKeyEvent(false, "E", false, game)
+                sendKey(vim1, false, "E")
               end
               _tp(workspace.Map.PrehistoricIsland.Core.ActivationPrompt.CFrame)              
             end
